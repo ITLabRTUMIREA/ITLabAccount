@@ -1,0 +1,21 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!DOCTYPE hibernate-configuration PUBLIC
+        "-//Hibernate/Hibernate Configuration DTD//EN"
+        "http://www.hibernate.org/dtd/hibernate-configuration-3.0.dtd">
+<hibernate-configuration>
+    <session-factory>
+        <property name="connection.driver_class">org.postgresql.Driver</property>
+        <property name="show_sql">true</property>
+        <property name="current_session_context_class">thread</property>
+        <property name="connection.autocommit">true</property>
+        <property name="dialect">org.hibernate.dialect.PostgreSQL95Dialect</property>
+
+        <mapping class="database.user.User"/>
+        <mapping class="database.user.RefreshToken"/>
+        <mapping class="database.user.UserCredentials"/>
+        <mapping class="database.user.UserProperty"/>
+        <mapping class="database.user.UserPropertyStatus"/>
+        <mapping class="database.user.UserPropertyType"/>
+
+    </session-factory>
+</hibernate-configuration>
