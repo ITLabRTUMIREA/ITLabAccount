@@ -41,3 +41,4 @@ build/
 .idea/.name
 .idea/artifacts/dist_auto_*
 kotlin-ultimate/
+resources/applicationSecure\.conf
