@@ -13,7 +13,7 @@ data class UserPropertyType(
 
     @Basic
     @Column(name = "name")
-    val name: String,
+    val name: String="",
 
     @Basic
     @Column(name = "description")
