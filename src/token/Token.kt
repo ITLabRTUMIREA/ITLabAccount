@@ -1,12 +1,13 @@
 package token
 
+import com.google.gson.JsonObject
 import com.jaju.utils.Encoder
 import java.lang.StringBuilder
 
 
 class Token {
     private val tokenGen = TokenGen()
-    var tokenStr: String = ""
+    var tokenStr = ""
 
     /**
      * Method for getting TokenGenerator
@@ -21,7 +22,7 @@ class Token {
     fun isEqual(token: String) = this.tokenStr == token
 
     inner class TokenGen {
-        private val payloadPar = LinkedHashMap<String, String>()
+        private val payloadPar = HashMap<String, String>()
 
         /**
          * Method for add parameters too map
@@ -49,18 +50,19 @@ class Token {
          * @param secret secret key
          */
         fun createToken(secret: String) {
-            val header = Encoder().bas64("""{"alg":"SHA512","type":"JWT"}""")
-            var payload = StringBuilder("""{""")
-            payloadPar.forEach { name, value -> payload.append(""","$name":"$value"""") }
-            payload.deleteCharAt(1)
-            payload.append("""}""")
-            payload = StringBuilder(Encoder().bas64(payload.toString()))
+            val header = JsonObject()
+            header.addProperty("alg", "SHA512")
+            header.addProperty("type", "JWT")
+            val payload = JsonObject()
+            payloadPar.forEach { name, value -> payload.addProperty(name, value) }
+            val headerStr = Encoder().bas64(header.toString())
+            val payloadStr = Encoder().bas64(payload.toString())
             val signature = Encoder()
                 .bas64(
                     Encoder()
-                        .sha512(Encoder().bas64(header.plus('.').plus(payload)), secret)
+                        .sha512(Encoder().bas64(headerStr.plus('.').plus(payloadStr)), secret)
                 )
-            tokenStr = header.plus(".").plus(payload).plus(".").plus(signature)
+            tokenStr = headerStr.plus(".").plus(payloadStr).plus(".").plus(signature)
         }
     }
 }

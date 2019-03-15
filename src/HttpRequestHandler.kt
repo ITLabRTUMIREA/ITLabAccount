@@ -17,7 +17,6 @@ import io.ktor.application.*
 import io.ktor.response.respond
 import java.io.InputStreamReader
 import io.ktor.request.receiveStream
-import io.ktor.util.pipeline.PipelineContext
 
 @Suppress("requestHandler")
 @kotlin.jvm.JvmOverloads
@@ -59,26 +58,24 @@ fun Application.module(testing: Boolean = true) {
     val hibernateUtil = HibernateUtil().setUpSession()
     install(Routing) {
 
-        /**
-         * Method for all simple GET request to base
-         * @param pipe resp?
-         * @param any entity class
-         * @return status code in json
-         */
-        fun getEntity(pipe: PipelineContext<*, ApplicationCall>, any: Any): JsonObject {
-            val id = when (val a = pipe.call.parameters["id"]) {
+        post("api/database/connect") {
+            hibernateUtil.setUpSession()
+        }
+
+        get("api/database/RefreshToken") {
+            val id = when (val a = call.parameters["id"]) {
                 "all", "0", "*" -> 0
                 else -> a?.toIntOrNull()
             }
 
-            return if (id != null) {
-                val userProperty = when (id) {
-                    0 -> hibernateUtil.getEntities(any)
-                    else -> hibernateUtil.getEntity(id, any)
+            val jsonObject = if (id != null) {
+                val token = when (id) {
+                    0 -> hibernateUtil.getEntities(RefreshToken())
+                    else -> hibernateUtil.getEntity(id, RefreshToken())
                 }
-                if (userProperty != null) {
+                if (token != null) {
                     val jsonElement =
-                        JsonParser().parse(Gson().toJson(userProperty)) as JsonElement
+                        JsonParser().parse(Gson().toJson(token)) as JsonElement
                     val jsonObject = JsonObject()
                     jsonObject.add("data", jsonElement)
                     jsonObject.addProperty("statusCode", 1)
@@ -96,50 +93,7 @@ fun Application.module(testing: Boolean = true) {
                 logger.error("Parameter id is incorrect")
                 jsonObject
             }
-        }
-
-        /**
-         * Method for all simple DELETE request to base
-         * @param pipe resp?
-         * @param any entity class
-         * @return status code in json
-         */
-        fun deleteEntity(pipe: PipelineContext<*, ApplicationCall>, any: Any): JsonObject {
-            val id = when (val a = pipe.call.parameters["id"]) {
-                "all", "0", "*" -> 0
-                else -> a?.toIntOrNull()
-            }
-
-            return if (id != null) {
-
-                val resultOfDeleting = hibernateUtil.deleteEntities(id, any)
-
-                if (resultOfDeleting) {
-                    val jsonObject = JsonObject()
-                    jsonObject.addProperty("id", id)
-                    jsonObject.addProperty("statusCode", 1)
-                    logger.info("Entity userPropertyStatus with id = $id is deleted successfully")
-                    jsonObject
-                } else {
-                    val jsonObject = JsonObject()
-                    jsonObject.addProperty("statusCode", 64)
-                    logger.error("Entity userPropertyStatus with id = $id is not deleted")
-                    jsonObject
-                }
-            } else {
-                val jsonObject = JsonObject()
-                jsonObject.addProperty("statusCode", 62)
-                logger.error("Parameter id is incorrect")
-                jsonObject
-            }
-        }
-
-        post("api/database/connect") {
-            hibernateUtil.setUpSession()
-        }
-
-        get("api/database/RefreshToken") {
-            call.respond(getEntity(this, RefreshToken()))
+            call.respond(jsonObject)
         }
 
         post("api/database/addRefreshToken") {
@@ -175,11 +129,65 @@ fun Application.module(testing: Boolean = true) {
         }
 
         delete("api/database/RefreshToken") {
-            call.respond(deleteEntity(this, RefreshToken()))
+            val id = when (val a = call.parameters["id"]) {
+                "all", "0", "*" -> 0
+                else -> a?.toIntOrNull()
+            }
+            val jsonObject = if (id != null) {
+                val resultOfDeleting = hibernateUtil.deleteEntities(id, RefreshToken())
+                if (resultOfDeleting) {
+                    val jsonObject = JsonObject()
+                    jsonObject.addProperty("id", id)
+                    jsonObject.addProperty("statusCode", 1)
+                    logger.info("Entity userPropertyStatus with id = $id is deleted successfully")
+                    jsonObject
+                } else {
+                    val jsonObject = JsonObject()
+                    jsonObject.addProperty("statusCode", 64)
+                    logger.error("Entity userPropertyStatus with id = $id is not deleted")
+                    jsonObject
+                }
+            } else {
+                val jsonObject = JsonObject()
+                jsonObject.addProperty("statusCode", 62)
+                logger.error("Parameter id is incorrect")
+                jsonObject
+            }
+            call.respond(jsonObject)
         }
 
         get("api/database/userPropertyStatus") {
-            call.respond(getEntity(this, UserPropertyStatus()))
+            val id = when (val a = call.parameters["id"]) {
+                "all", "0", "*" -> 0
+                else -> a?.toIntOrNull()
+            }
+
+            val jsonObject = if (id != null) {
+                val userProperty = when (id) {
+                    0 -> hibernateUtil.getEntities(UserPropertyStatus())
+                    else -> hibernateUtil.getEntity(id, UserPropertyStatus())
+                }
+                if (userProperty != null) {
+                    val jsonElement =
+                        JsonParser().parse(Gson().toJson(userProperty)) as JsonElement
+                    val jsonObject = JsonObject()
+                    jsonObject.add("data", jsonElement)
+                    jsonObject.addProperty("statusCode", 1)
+                    logger.info("Entity userPropertyStatus with id = $id is gotten successfully")
+                    jsonObject
+                } else {
+                    val jsonObject = JsonObject()
+                    jsonObject.addProperty("statusCode", 61)
+                    logger.error("Entity userPropertyStatus with id = $id is not gotten")
+                    jsonObject
+                }
+            } else {
+                val jsonObject = JsonObject()
+                jsonObject.addProperty("statusCode", 62)
+                logger.error("Parameter id is incorrect")
+                jsonObject
+            }
+            call.respond(jsonObject)
         }
 
         post("api/database/addUserPropertyStatus") {
@@ -203,11 +211,65 @@ fun Application.module(testing: Boolean = true) {
         }
 
         delete("api/database/userPropertyStatus") {
-            call.respond(deleteEntity(this, UserPropertyStatus()))
+            val id = when (val a = call.parameters["id"]) {
+                "all", "0", "*" -> 0
+                else -> a?.toIntOrNull()
+            }
+            val jsonObject = if (id != null) {
+                val resultOfDeleting = hibernateUtil.deleteEntities(id, UserPropertyStatus())
+                if (resultOfDeleting) {
+                    val jsonObject = JsonObject()
+                    jsonObject.addProperty("id", id)
+                    jsonObject.addProperty("statusCode", 1)
+                    logger.info("Entity userPropertyStatus with id = $id is deleted successfully")
+                    jsonObject
+                } else {
+                    val jsonObject = JsonObject()
+                    jsonObject.addProperty("statusCode", 64)
+                    logger.error("Entity userPropertyStatus with id = $id is not deleted")
+                    jsonObject
+                }
+            } else {
+                val jsonObject = JsonObject()
+                jsonObject.addProperty("statusCode", 62)
+                logger.error("Parameter id is incorrect")
+                jsonObject
+            }
+            call.respond(jsonObject)
         }
 
         get("/api/database/userPropertyType") {
-            call.respond(getEntity(this, UserPropertyType()))
+            val id = when (val a = call.parameters["id"]) {
+                "all", "0", "*" -> 0
+                else -> a?.toIntOrNull()
+            }
+
+            val jsonObject = if (id != null) {
+                val userProperty = when (id) {
+                    0 -> hibernateUtil.getEntities(UserPropertyType())
+                    else -> hibernateUtil.getEntity(id, UserPropertyType())
+                }
+                if (userProperty != null) {
+                    val jsonElement =
+                        JsonParser().parse(Gson().toJson(userProperty)) as JsonElement
+                    val jsonObject = JsonObject()
+                    jsonObject.add("data", jsonElement)
+                    jsonObject.addProperty("statusCode", 1)
+                    logger.info("Entity userPropertyStatus with id = $id is gotten successfully")
+                    jsonObject
+                } else {
+                    val jsonObject = JsonObject()
+                    jsonObject.addProperty("statusCode", 61)
+                    logger.error("Entity userPropertyStatus with id = $id is not gotten")
+                    jsonObject
+                }
+            } else {
+                val jsonObject = JsonObject()
+                jsonObject.addProperty("statusCode", 62)
+                logger.error("Parameter id is incorrect")
+                jsonObject
+            }
+            call.respond(jsonObject)
         }
 
         post("/api/database/addUserPropertyType") {
@@ -233,7 +295,31 @@ fun Application.module(testing: Boolean = true) {
         }
 
         delete("api/database/userPropertyType") {
-            call.respond(deleteEntity(this, UserPropertyType()))
+            val id = when (val a = call.parameters["id"]) {
+                "all", "0", "*" -> 0
+                else -> a?.toIntOrNull()
+            }
+            val jsonObject = if (id != null) {
+                val resultOfDeleting = hibernateUtil.deleteEntities(id, UserPropertyType())
+                if (resultOfDeleting) {
+                    val jsonObject = JsonObject()
+                    jsonObject.addProperty("id", id)
+                    jsonObject.addProperty("statusCode", 1)
+                    logger.info("Entity userPropertyStatus with id = $id is deleted successfully")
+                    jsonObject
+                } else {
+                    val jsonObject = JsonObject()
+                    jsonObject.addProperty("statusCode", 64)
+                    logger.error("Entity userPropertyStatus with id = $id is not deleted")
+                    jsonObject
+                }
+            } else {
+                val jsonObject = JsonObject()
+                jsonObject.addProperty("statusCode", 62)
+                logger.error("Parameter id is incorrect")
+                jsonObject
+            }
+            call.respond(jsonObject)
         }
 
         post("api/authentication/login") {
