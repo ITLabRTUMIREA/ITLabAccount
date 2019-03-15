@@ -13,5 +13,5 @@ data class RefreshToken(
 
     @Basic
     @Column(name = "token")
-    val token: String
+    val token: String=""
 )
