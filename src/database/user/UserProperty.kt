@@ -2,6 +2,9 @@ package database.user
 
 import database.user.UserPropertyStatus
 import database.user.UserPropertyType
+import org.hibernate.annotations.Cascade
+import org.hibernate.annotations.OnDelete
+import org.hibernate.annotations.OnDeleteAction
 import javax.persistence.*
 
 @Entity
@@ -15,13 +18,15 @@ data class UserProperty(
 
     @Basic
     @Column(name = "value")
-    val value: String,
+    val value: String?="",
 
-    @OneToOne
+    @ManyToOne
     @JoinColumn(name = "userPropertyTypeId")
-    val userPropertyType: UserPropertyType,
+    @Cascade(org.hibernate.annotations.CascadeType.SAVE_UPDATE)
+     val userPropertyType: UserPropertyType?=null,
 
-    @OneToOne
+    @ManyToOne
     @JoinColumn(name = "userPropertyStatusId")
-    val userPropertyStatus: UserPropertyStatus
+    @Cascade(org.hibernate.annotations.CascadeType.SAVE_UPDATE)
+     val userPropertyStatus: UserPropertyStatus?=null
 )
