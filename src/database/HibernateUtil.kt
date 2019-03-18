@@ -287,6 +287,27 @@ class HibernateUtil {
         }
     }
 
+    fun <T : Any> updateEntity(classRef: T): Boolean {
+        var session: Session? = null
+
+        if (sessionFactory == null || sessionFactory!!.isClosed)
+            setUpSession()
+
+        return try {
+
+            session = sessionFactory!!.openSession()
+            session.beginTransaction()
+
+            session.update(classRef)
+            session.transaction.commit()
+            session.close()
+            true
+        } catch (ex: Exception) {
+            if (session != null) session.close()
+            logger.error(ex.message + " sessionFactory")
+            false
+        }
+    }
 
     fun addUserCredentials(username: String, password: String, user: User) {
         var session: Session? = null
