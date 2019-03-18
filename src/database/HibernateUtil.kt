@@ -107,6 +107,7 @@ class HibernateUtil {
     /**
      * Adding user property status (e.g. confirmed) postgres database
      * @param statusValue
+     * @return id entity that was added
      */
     fun addUserPropertyStatus(statusValue: String): Int {
         var session: Session? = null
@@ -134,9 +135,9 @@ class HibernateUtil {
     /**
      * Adding user property type (e.g. email) to  postgres database
      * @param typeName (e.g email, phone)
-     * @param description description of this property type, default = ""
+     * @return id of added propertyType
      */
-    fun addUserPropertyType(typeName: String, description: String = ""): Int {
+    fun addUserPropertyType(typeName: String, description: String? = null): Int {
         var session: Session? = null
 
         if (sessionFactory == null || sessionFactory!!.isClosed)
@@ -148,7 +149,7 @@ class HibernateUtil {
             session.beginTransaction()
             var propertyType = UserPropertyType(name = typeName)
 
-            if (description.isNotBlank())
+            if (description != null)
                 propertyType = propertyType.copy(description = description)
 
             session.save(propertyType)
@@ -172,7 +173,7 @@ class HibernateUtil {
     fun addUserProperty(
         value: String,
         propertyType: UserPropertyType,
-        propertyStatus: UserPropertyStatus
+        propertyStatus: UserPropertyStatus? = null
     ): Int {
         var session: Session? = null
 
@@ -287,6 +288,27 @@ class HibernateUtil {
         }
     }
 
+    fun <T : Any> updateEntity(classRef: T): Boolean {
+        var session: Session? = null
+
+        if (sessionFactory == null || sessionFactory!!.isClosed)
+            setUpSession()
+
+        return try {
+
+            session = sessionFactory!!.openSession()
+            session.beginTransaction()
+
+            session.update(classRef)
+            session.transaction.commit()
+            session.close()
+            true
+        } catch (ex: Exception) {
+            if (session != null) session.close()
+            logger.error(ex.message + " sessionFactory")
+            false
+        }
+    }
 
     fun addUserCredentials(username: String, password: String, user: User) {
         var session: Session? = null
