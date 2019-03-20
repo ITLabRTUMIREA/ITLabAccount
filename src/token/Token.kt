@@ -2,6 +2,7 @@ package token
 
 import com.google.gson.JsonObject
 import com.jaju.utils.Encoder
+import org.hibernate.mapping.Map
 import java.lang.StringBuilder
 
 
@@ -26,23 +27,11 @@ class Token {
 
         /**
          * Method for add parameters too map
-         * @param name name of parameter
-         * @param value value of parameter
+         * @param parameters map of parameters
          * @return TokenGen
          */
-        fun addPar(name: String, value: Any): TokenGen {
-            payloadPar[name] = "$value"
-            return this
-        }
-
-        /**
-         * Method for delete parameters from map
-         * @param name name of parameter
-         * @return TokenGen
-         */
-        fun delPar(name: String): TokenGen {
-            payloadPar.remove(name)
-            return this
+        fun addParameters(parameters:HashMap<String,String>) {
+            payloadPar.putAll(parameters)
         }
 
         /**

@@ -199,6 +199,76 @@ class HibernateUtil {
         }
     }
 
+    //TODO:Info about method
+    fun addUser(
+        firstName:String,
+        lastName:String,
+        middleName:String,
+        refreshTokens:Set<RefreshToken>,
+        userPropertys:Set<UserProperty>,
+        credentialsId:UserCredentials
+    ) : Int {
+        var session: Session? = null
+
+        if (sessionFactory == null || sessionFactory!!.isClosed)
+            setUpSession()
+
+        return try {
+
+            session = sessionFactory!!.openSession()
+            session.beginTransaction()
+
+            val user =
+                User(
+                    firstName = firstName,
+                    lastName = lastName,
+                    middleName = middleName,
+                    refreshTokens = refreshTokens,
+                    userPropertys = userPropertys,
+                    credentials = credentialsId
+                )
+
+            session.save(user)
+            session.transaction.commit()
+            session.close()
+            user.id
+        } catch (ex: Exception) {
+            if (session != null) session.close()
+            logger.error(ex.message + " sessionFactory")
+            0
+        }
+    }
+
+    //TODO:Info about method
+    fun addUserCredentials(
+        username:String,
+        password: String
+    ) : Int {
+        var session: Session? = null
+
+        if (sessionFactory == null || sessionFactory!!.isClosed)
+            setUpSession()
+
+        return try {
+
+            session = sessionFactory!!.openSession()
+            session.beginTransaction()
+
+            val userCredentials =
+                UserCredentials(
+                    username = username,
+                    password = password
+                )
+            session.save(userCredentials)
+            session.transaction.commit()
+            session.close()
+            userCredentials.id
+        } catch (ex: Exception) {
+            if (session != null) session.close()
+            logger.error(ex.message + " sessionFactory")
+            0
+        }
+    }
 
     /**
      * Getting entity by id
@@ -307,25 +377,6 @@ class HibernateUtil {
             if (session != null) session.close()
             logger.error(ex.message + " sessionFactory")
             false
-        }
-    }
-
-    fun addUserCredentials(username: String, password: String, user: User) {
-        var session: Session? = null
-
-        if (sessionFactory == null || sessionFactory!!.isClosed)
-            setUpSession()
-
-        return try {
-            session = sessionFactory!!.openSession()
-            session.beginTransaction()
-            val userCredentials = UserCredentials(username, password, user)
-            session.save(userCredentials)
-            session.session.transaction.commit()
-            session.close()
-        } catch (ex: Exception) {
-            if (session != null) session.close()
-            logger.error(ex.message + " sessionFactory")
         }
     }
 }

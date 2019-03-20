@@ -14,21 +14,27 @@ data class User(
 
     @Basic
     @Column(name = "firstName")
-    val firstName: String,
+    val firstName: String?=null,
 
     @Basic
     @Column(name = "lastName")
-    val lastName: String,
+    val lastName: String?=null,
 
     @Basic
     @Column(name = "middleName")
-    val middleName: String,
+    val middleName: String?=null,
 
-    @OneToMany
-    @JoinColumn(name = "refreshTokenId")
-    val refreshTokens: Set<RefreshToken>,
+    //TODO: Think about CascadeType
 
-    @OneToMany
-    @JoinColumn(name = "userPropertyId")
-    val userProperties: Set<UserProperty>
+    @OneToMany(cascade = [CascadeType.ALL],fetch = FetchType.EAGER)
+    @JoinColumn(name = "userid")
+    val refreshTokens: Set<RefreshToken>?=null,
+
+    @OneToMany(cascade = [CascadeType.ALL],fetch = FetchType.EAGER)
+    @JoinColumn(name = "userid")
+    val userPropertys: Set<UserProperty>?=null,
+
+    @OneToOne(cascade = [CascadeType.ALL])
+    @JoinColumn(name = "credentialsId")
+    val credentials: UserCredentials?=null
 )
