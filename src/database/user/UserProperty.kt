@@ -17,8 +17,6 @@ data class UserProperty(
     @Column(name = "value")
     val value: String = "",
 
-    //TODO: Think about CascadeType
-
     @ManyToOne
     @NotNull
     @JoinColumn(name = "userPropertyTypeId")

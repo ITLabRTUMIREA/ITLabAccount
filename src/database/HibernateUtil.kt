@@ -169,6 +169,7 @@ class HibernateUtil {
      * @param value value of user property (e.g test@gmail.com)
      * @param propertyType type of this property
      * @param propertyStatus status of this property
+     * @return if of added property
      */
     fun addUserProperty(
         value: String,
@@ -199,7 +200,16 @@ class HibernateUtil {
         }
     }
 
-    //TODO:Info about method
+    /**
+     * Adding user to postgres database
+     * @param firstName users first name
+     * @param lastName users last name
+     * @param middleName users middle name
+     * @param refreshTokens set of users RefreshToken
+     * @param userPropertys set of users Property
+     * @param credentialsId users credentialsId
+     * @return id of added user
+     */
     fun addUser(
         firstName:String,
         lastName:String,
@@ -239,7 +249,12 @@ class HibernateUtil {
         }
     }
 
-    //TODO:Info about method
+    /**
+     * Add UserCredentials to postgres database
+     * @param username users username
+     * @param password users password
+     * @return id of added UserCredentials
+     */
     fun addUserCredentials(
         username:String,
         password: String
@@ -358,6 +373,11 @@ class HibernateUtil {
         }
     }
 
+    /**
+     * Updating entetys
+     * @param classRef class reference T
+     * @return true if updated else false
+     */
     fun <T : Any> updateEntity(classRef: T): Boolean {
         var session: Session? = null
 

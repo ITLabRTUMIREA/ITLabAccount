@@ -51,9 +51,8 @@ fun Application.module(testing: Boolean = true) {
 //        }
 //    }
 
-    //TODO: Check ALL request and cascades
-    //TODO: Clean up code and mb refactor names
-    //TODO: Postman update info about methods
+    //TODO: Refactor code and do more readable ?
+
     val hibernateUtil = HibernateUtil().setUpSession()
     install(Routing) {
 
@@ -61,7 +60,7 @@ fun Application.module(testing: Boolean = true) {
             hibernateUtil.setUpSession()
         }
 
-        //TODO: Think better about input json data
+        //TODO: Change input json ?
         post("api/database/addRefreshToken") {
             val tmp: JsonObject? =
                 Gson().fromJson(InputStreamReader(call.receiveStream(), "UTF-8"), JsonObject::class.java)
@@ -77,8 +76,8 @@ fun Application.module(testing: Boolean = true) {
                 //TODO: JUST FOR TESTING! ITs must be random
                 tokenGen.createToken("123")
 
-              val id = hibernateUtil.addRefreshToken(token.tokenStr)
-                if(id!=0) {
+                val id = hibernateUtil.addRefreshToken(token.tokenStr)
+                if (id != 0) {
                     logger.info("RefreshToken added to postgres database with id = $id")
                     call.response.status(HttpStatusCode.OK)
                 } else {
@@ -397,14 +396,10 @@ fun Application.module(testing: Boolean = true) {
                 Gson().fromJson(InputStreamReader(call.receiveStream(), "UTF-8"), JsonObject::class.java)
 
             val value = tmp?.get("value")
-            val propertyType = tmp?.get("UserPropertyType")
-            val propertyStatus = tmp?.get("UserPropertyStatus")
-
+            val propertyType = Gson().fromJson(tmp?.get("UserPropertyType"), UserPropertyType()::class.java)
+            val propertyStatus = Gson().fromJson(tmp?.get("UserPropertyStatus"), UserPropertyStatus()::class.java)
             if (value != null && propertyType != null && propertyStatus != null) {
-
-                val userPropertyType = Gson().fromJson(propertyType, UserPropertyType()::class.java)
-                val userPropertyStatus = Gson().fromJson(propertyStatus, UserPropertyStatus()::class.java)
-                val id = hibernateUtil.addUserProperty(value.asString, userPropertyType, userPropertyStatus)
+                val id = hibernateUtil.addUserProperty(value.asString, propertyType, propertyStatus)
                 val result = JsonObject()
                 call.respond(result)
                 logger.info("UserProperty added to postgres database with id = $id")
@@ -677,7 +672,7 @@ fun Application.module(testing: Boolean = true) {
             val password = tmp?.get("password")
             if (username != null && password != null) {
                 val result = JsonObject()
-                val id = hibernateUtil.addUserCredentials(username = username.asString,password =  password.asString)
+                val id = hibernateUtil.addUserCredentials(username = username.asString, password = password.asString)
                 result.addProperty("id", id)
                 logger.info("UserPropertyType added to postgres database with id = $id")
                 call.respond(result)
@@ -737,7 +732,47 @@ fun Application.module(testing: Boolean = true) {
             }
         }
 
-        //TODO: Registration request
+        post("api/registration") {
+            val tmp: JsonObject? =
+                Gson().fromJson(InputStreamReader(call.receiveStream(), "UTF-8"), JsonObject::class.java)
+            val userCredentials = Gson().fromJson(tmp?.get("userCredentials"), JsonObject::class.java)
+            val userInfo = Gson().fromJson(tmp?.get("user"), JsonObject::class.java)
+            val userProperty = Gson().fromJson(tmp?.get("userProperty"), JsonObject::class.java)
+            if (userCredentials != null && userInfo != null && userProperty != null) {
+                val userC = UserCredentials(
+                    username = userCredentials.get("username").asString,
+                    password = userCredentials.get("password").asString
+                )
+                val userP = UserProperty(
+                    value = userProperty.get("value").asString,
+                    userPropertyStatus = hibernateUtil.getEntity(2, UserPropertyStatus()),
+                    userPropertyType = hibernateUtil.getEntity(
+                        userProperty.get("userPropertyTypeId").asInt,
+                        UserPropertyType()
+                    )
+
+                )
+                val userPropertys = HashSet<UserProperty>()
+                //TODO: Generate token here?
+                val userTokens = HashSet<RefreshToken>()
+                userPropertys.add(userP)
+                val id = hibernateUtil.addUser(
+                    userInfo.get("firstName").asString,
+                    userInfo.get("lastName").asString,
+                    userInfo.get("middleName").asString,
+                    userTokens,
+                    userPropertys,
+                    userC
+                )
+                val result = JsonObject()
+                result.addProperty("id", id)
+                logger.info("User added to postgres database with id = $id")
+                call.respond(result)
+            } else {
+                logger.error("Can't add entity User to postgres database")
+                call.response.status(HttpStatusCode.BadRequest)
+            }
+        }
 
         post("api/authentication/login") {
 

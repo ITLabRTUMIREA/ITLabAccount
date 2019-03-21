@@ -1,6 +1,7 @@
 package database.user
 
 
+import com.sun.istack.NotNull
 import javax.persistence.*
 
 @Entity
@@ -24,17 +25,18 @@ data class User(
     @Column(name = "middleName")
     val middleName: String?=null,
 
-    //TODO: Think about CascadeType
-
     @OneToMany(cascade = [CascadeType.ALL],fetch = FetchType.EAGER)
     @JoinColumn(name = "userid")
+    @NotNull
     val refreshTokens: Set<RefreshToken>?=null,
 
     @OneToMany(cascade = [CascadeType.ALL],fetch = FetchType.EAGER)
     @JoinColumn(name = "userid")
+    @NotNull
     val userPropertys: Set<UserProperty>?=null,
 
     @OneToOne(cascade = [CascadeType.ALL])
+    @NotNull
     @JoinColumn(name = "credentialsId")
     val credentials: UserCredentials?=null
 )
