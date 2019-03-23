@@ -588,6 +588,9 @@ fun Application.module(testing: Boolean = true) {
                     val lName = tmp?.get("lastName")
                     val mName = tmp?.get("middleName")
 
+                    val refreshTokens = tmp?.get("refreshTokensId")?.asJsonArray
+                    val userPropertys = tmp?.get("userPropertysId")?.asJsonArray
+
                     if (fName != null) {
                         user = user.copy(firstName = fName.asString)
                     }
@@ -598,6 +601,34 @@ fun Application.module(testing: Boolean = true) {
 
                     if (mName != null) {
                         user = user.copy(middleName = mName.asString)
+                    }
+
+                    if (refreshTokens != null) {
+                        val tokens = HashSet<RefreshToken>()
+                        refreshTokens.forEach {
+                            val token = hibernateUtil.getEntity(
+                                Gson().fromJson(it, JsonObject::class.java).get("id").asInt,
+                                RefreshToken()
+                            )
+                            if (token != null) {
+                                tokens.add(token)
+                            }
+                        }
+                        user = user.copy(refreshTokens = tokens)
+                    }
+
+                    if (userPropertys != null) {
+                        val propertys = HashSet<UserProperty>()
+                        userPropertys.forEach {
+                            val property = hibernateUtil.getEntity(
+                                Gson().fromJson(it, JsonObject::class.java).get("id").asInt,
+                                UserProperty()
+                            )
+                            if (property != null) {
+                                propertys.add(property)
+                            }
+                        }
+                        user = user.copy(userPropertys = propertys)
                     }
 
                     if (hibernateUtil.updateEntity(user)) {

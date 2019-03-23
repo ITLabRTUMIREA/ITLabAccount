@@ -389,7 +389,8 @@ class HibernateUtil {
             session = sessionFactory!!.openSession()
             session.beginTransaction()
 
-            session.update(classRef)
+            session.merge(classRef)
+            session.evict(classRef)
             session.transaction.commit()
             session.close()
             true
