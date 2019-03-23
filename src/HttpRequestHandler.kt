@@ -543,7 +543,7 @@ fun Application.module(testing: Boolean = true) {
                 val tokens = HashSet<RefreshToken>()
                 refreshTokens.forEach {
                     val token = hibernateUtil.getEntity(
-                        Gson().fromJson(it, JsonObject::class.java).get("id").asInt,
+                        it.asInt,
                         RefreshToken()
                     )
                     if (token != null) {
@@ -553,7 +553,7 @@ fun Application.module(testing: Boolean = true) {
                 val propertys = HashSet<UserProperty>()
                 userPropertys.forEach {
                     val property = hibernateUtil.getEntity(
-                        Gson().fromJson(it, JsonObject::class.java).get("id").asInt,
+                        it.asInt,
                         UserProperty()
                     )
                     if (property != null) {
@@ -562,7 +562,14 @@ fun Application.module(testing: Boolean = true) {
                 }
                 val credentials = hibernateUtil.getEntity(userCredentials.asInt, UserCredentials())
                 if (tokens.size > 0 && propertys.size > 0 && credentials != null) {
-                    val id = hibernateUtil.addUser(fName.asString, lName.asString, mName.asString, tokens, propertys,credentials)
+                    val id = hibernateUtil.addUser(
+                        fName.asString,
+                        lName.asString,
+                        mName.asString,
+                        tokens,
+                        propertys,
+                        credentials
+                    )
                     val result = JsonObject()
                     result.addProperty("id", id)
                     logger.info("User added to postgres database with id = $id")
@@ -606,8 +613,7 @@ fun Application.module(testing: Boolean = true) {
                     if (refreshTokens != null) {
                         val tokens = HashSet<RefreshToken>()
                         refreshTokens.forEach {
-                            val token = hibernateUtil.getEntity(
-                                Gson().fromJson(it, JsonObject::class.java).get("id").asInt,
+                            val token = hibernateUtil.getEntity(it.asInt,
                                 RefreshToken()
                             )
                             if (token != null) {
@@ -620,8 +626,7 @@ fun Application.module(testing: Boolean = true) {
                     if (userPropertys != null) {
                         val propertys = HashSet<UserProperty>()
                         userPropertys.forEach {
-                            val property = hibernateUtil.getEntity(
-                                Gson().fromJson(it, JsonObject::class.java).get("id").asInt,
+                            val property = hibernateUtil.getEntity(it.asInt,
                                 UserProperty()
                             )
                             if (property != null) {
