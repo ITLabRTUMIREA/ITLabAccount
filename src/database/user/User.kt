@@ -1,6 +1,7 @@
 package database.user
 
 
+import com.sun.istack.NotNull
 import javax.persistence.*
 
 @Entity
@@ -9,26 +10,29 @@ data class User(
 
     @Id
     @Column(name = "id")
+    @NotNull
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Int = 0,
 
     @Basic
     @Column(name = "firstName")
-    val firstName: String,
+    val firstName: String?=null,
 
     @Basic
     @Column(name = "lastName")
-    val lastName: String,
+    val lastName: String?=null,
 
     @Basic
     @Column(name = "middleName")
-    val middleName: String,
+    val middleName: String?=null,
 
-    @OneToMany
-    @JoinColumn(name = "refreshTokenId")
-    val refreshTokens: Set<RefreshToken>,
+    @OneToMany(cascade = [CascadeType.ALL],fetch = FetchType.EAGER)
+    @JoinColumn(name = "userid")
+    @NotNull
+    val refreshTokens: Set<RefreshToken>?=null,
 
-    @OneToMany
-    @JoinColumn(name = "userPropertyId")
-    val userProperties: Set<UserProperty>
+    @OneToMany(cascade = [CascadeType.ALL],fetch = FetchType.EAGER)
+    @JoinColumn(name = "userid")
+    @NotNull
+    val userProperties: Set<UserProperty>?=null
 )

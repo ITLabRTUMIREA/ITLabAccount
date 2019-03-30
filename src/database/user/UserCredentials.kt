@@ -1,6 +1,6 @@
 package database.user
 
-import database.user.User
+import com.sun.istack.NotNull
 import javax.persistence.*
 
 @Entity
@@ -8,15 +8,20 @@ import javax.persistence.*
 data class UserCredentials(
 
     @Id
-    @Column(name = "username")
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    val username: String,
+    @Column(name = "id")
+    val id:Int=0,
 
     @Basic
-    @Column(name = "password")
-    val password: String,
+    @Column(name = "username",updatable = false)
+    val username: String="",
 
-    @OneToOne
+    @Basic
+    @Column(name = "password",insertable = true)
+    val password: String="",
+
+    @OneToOne(cascade = [CascadeType.ALL])
+    @NotNull
     @JoinColumn(name = "userId")
-    val user: User
+    val userId: User?=null
 )

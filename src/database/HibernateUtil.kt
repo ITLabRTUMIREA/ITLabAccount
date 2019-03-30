@@ -29,7 +29,7 @@ class HibernateUtil {
         configuration.addAnnotatedClass(UserPropertyStatus::class.java)
         configuration.addAnnotatedClass(database.user.UserPropertyType::class.java)
 
-        configuration.configure("../resources/hibernate.cfg.xml")
+        configuration.configure("hibernate.cfg.xml")
 
         if (Config("resources/applicationSecure.conf").config != null) {
 
@@ -169,6 +169,7 @@ class HibernateUtil {
      * @param value value of user property (e.g test@gmail.com)
      * @param propertyType type of this property
      * @param propertyStatus status of this property
+     * @return if of added property
      */
     fun addUserProperty(
         value: String,
@@ -199,6 +200,86 @@ class HibernateUtil {
         }
     }
 
+    /**
+     * Adding user to postgres database
+     * @param firstName users first name
+     * @param lastName users last name
+     * @param middleName users middle name
+     * @param userProperties set of users Property
+     * @return id of added user
+     */
+    fun addUser(
+        firstName: String,
+        lastName: String,
+        middleName: String,
+        userProperties: Set<UserProperty>
+    ): Int {
+        var session: Session? = null
+
+        if (sessionFactory == null || sessionFactory!!.isClosed)
+            setUpSession()
+
+        return try {
+
+            session = sessionFactory!!.openSession()
+            session.beginTransaction()
+
+            val user =
+                User(
+                    firstName = firstName,
+                    lastName = lastName,
+                    middleName = middleName,
+                    userProperties = userProperties
+                )
+
+            session.save(user)
+            session.transaction.commit()
+            session.close()
+            user.id
+        } catch (ex: Exception) {
+            if (session != null) session.close()
+            logger.error(ex.message + " sessionFactory")
+            0
+        }
+    }
+
+    /**
+     * Add UserCredentials to postgres database
+     * @param username users username
+     * @param password users password
+     * @return id of added UserCredentials
+     */
+    fun addUserCredentials(
+        username: String,
+        password: String,
+        userId: Int
+    ): Int {
+        var session: Session? = null
+
+        if (sessionFactory == null || sessionFactory!!.isClosed)
+            setUpSession()
+
+        return try {
+
+            session = sessionFactory!!.openSession()
+            session.beginTransaction()
+
+            val userCredentials =
+                UserCredentials(
+                    username = username,
+                    password = password,
+                    userId = getEntity(userId, User())
+                )
+            session.save(userCredentials)
+            session.transaction.commit()
+            session.close()
+            userCredentials.id
+        } catch (ex: Exception) {
+            if (session != null) session.close()
+            logger.error(ex.message + " sessionFactory")
+            0
+        }
+    }
 
     /**
      * Getting entity by id
@@ -223,6 +304,25 @@ class HibernateUtil {
             logger.error(ex.message + " sessionFactory")
             null
         }
+    }
+
+    /**
+     * Getting propertyStatusByValue
+     * @param value - value of statusProperty
+     * @return userPropertyStatus if found else null
+     */
+    fun getUserPropertyStatusByValue(value: String): UserPropertyStatus? {
+        val entities = getEntities(UserPropertyStatus())
+        var entity: UserPropertyStatus? = null
+        if (entities != null) {
+            for (it in entities) {
+                if (it.value == value) {
+                    entity = it
+                    break
+                }
+            }
+        }
+        return entity
     }
 
     /**
@@ -288,6 +388,11 @@ class HibernateUtil {
         }
     }
 
+    /**
+     * Updating entetys
+     * @param classRef class reference T
+     * @return true if updated else false
+     */
     fun <T : Any> updateEntity(classRef: T): Boolean {
         var session: Session? = null
 
@@ -299,7 +404,8 @@ class HibernateUtil {
             session = sessionFactory!!.openSession()
             session.beginTransaction()
 
-            session.update(classRef)
+            session.merge(classRef)
+            session.evict(classRef)
             session.transaction.commit()
             session.close()
             true
@@ -307,25 +413,6 @@ class HibernateUtil {
             if (session != null) session.close()
             logger.error(ex.message + " sessionFactory")
             false
-        }
-    }
-
-    fun addUserCredentials(username: String, password: String, user: User) {
-        var session: Session? = null
-
-        if (sessionFactory == null || sessionFactory!!.isClosed)
-            setUpSession()
-
-        return try {
-            session = sessionFactory!!.openSession()
-            session.beginTransaction()
-            val userCredentials = UserCredentials(username, password, user)
-            session.save(userCredentials)
-            session.session.transaction.commit()
-            session.close()
-        } catch (ex: Exception) {
-            if (session != null) session.close()
-            logger.error(ex.message + " sessionFactory")
         }
     }
 }
