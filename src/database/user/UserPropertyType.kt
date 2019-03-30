@@ -7,15 +7,12 @@ import javax.persistence.*
 data class UserPropertyType(
 
     @Id
-    @Column(name = "id")
+    @Column(name = "id", nullable = false)
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    val id: Int = 0,
+    val id: Int? = null,
 
     @Basic
-    @Column(name = "name")
-    val name: String="",
+    @Column(name = "name", nullable = false)
+    val name: String? = null
 
-    @Basic
-    @Column(name = "description")
-    val description: String = ""
 )

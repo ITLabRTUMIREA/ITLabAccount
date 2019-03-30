@@ -8,20 +8,16 @@ import javax.persistence.*
 data class UserCredentials(
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id")
-    val id:Int=0,
+    @Column(name = "username", updatable = false, nullable = false)
+    val username: String? = null,
 
     @Basic
-    @Column(name = "username",updatable = false)
-    val username: String="",
-
-    @Basic
-    @Column(name = "password",insertable = true)
-    val password: String="",
+    @NotNull
+    @Column(name = "password", insertable = true, nullable = false)
+    val password: String? = null,
 
     @OneToOne(cascade = [CascadeType.ALL])
     @NotNull
-    @JoinColumn(name = "userId")
-    val userId: User?=null
+    @JoinColumn(name = "user_id", nullable = false, insertable = false)
+    val userId: User? = null
 )
