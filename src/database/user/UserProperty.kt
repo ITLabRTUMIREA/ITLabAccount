@@ -1,6 +1,5 @@
 package database.user
 
-import com.sun.istack.NotNull
 import org.hibernate.annotations.Cascade
 import javax.persistence.*
 

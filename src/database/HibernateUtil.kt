@@ -23,7 +23,6 @@ class HibernateUtil {
         val configuration = Configuration()
 
         configuration.addAnnotatedClass(database.user.User::class.java)
-        configuration.addAnnotatedClass(database.user.RefreshToken::class.java)
         configuration.addAnnotatedClass(database.user.UserCredentials::class.java)
         configuration.addAnnotatedClass(database.user.UserProperty::class.java)
         configuration.addAnnotatedClass(UserPropertyStatus::class.java)
@@ -65,7 +64,6 @@ class HibernateUtil {
     /**
      * Close session
      */
-
     fun closeSession(): HibernateUtil {
         logger.info("Closing sessionFactory session")
         if (sessionFactory != null && sessionFactory!!.isOpen) {
@@ -82,32 +80,32 @@ class HibernateUtil {
      * @param token refresh token
      * @param
      */
-    fun addRefreshToken(token: String): Int {
-        var session: Session? = null
-
-        if (sessionFactory == null || sessionFactory!!.isClosed)
-            setUpSession()
-
-        return try {
-            session = sessionFactory!!.openSession()
-            session.beginTransaction()
-            val refreshToken = RefreshToken(token = token)
-
-            session.save(refreshToken)
-            session.transaction.commit()
-            session.close()
-            refreshToken.id
-        } catch (ex: Exception) {
-            if (session != null) session.close()
-            logger.error(ex.message)
-            0
-        }
-    }
+//    fun addRefreshToken(token: String): Int {
+//        var session: Session? = null
+//
+//        if (sessionFactory == null || sessionFactory!!.isClosed)
+//            setUpSession()
+//
+//        return try {
+//            session = sessionFactory!!.openSession()
+//            session.beginTransaction()
+//            val refreshToken = RefreshToken(token = token)
+//
+//            session.save(refreshToken)
+//            session.transaction.commit()
+//            session.close()
+//            refreshToken.id
+//        } catch (ex: Exception) {
+//            if (session != null) session.close()
+//            logger.error(ex.message)
+//            0
+//        }
+//    }
 
     /**
      * Adding user property status (e.g. confirmed) postgres database
      * @param statusValue
-     * @return id entity that was added
+     * @return id entity that was added, if id = 0 - not added
      */
     fun addUserPropertyStatus(statusValue: String): Int {
         var session: Session? = null
@@ -124,7 +122,7 @@ class HibernateUtil {
             session.save(propertyStatus)
             session.transaction.commit()
             session.close()
-            propertyStatus.id
+            propertyStatus.id ?: 0
         } catch (ex: Exception) {
             if (session != null) session.close()
             logger.error(ex.message + " sessionFactory")
@@ -135,9 +133,9 @@ class HibernateUtil {
     /**
      * Adding user property type (e.g. email) to  postgres database
      * @param typeName (e.g email, phone)
-     * @return id of added propertyType
+     * @return id of added propertyType, if id = 0 - not added
      */
-    fun addUserPropertyType(typeName: String, description: String? = null): Int {
+    fun addUserPropertyType(typeName: String): Int {
         var session: Session? = null
 
         if (sessionFactory == null || sessionFactory!!.isClosed)
@@ -149,13 +147,10 @@ class HibernateUtil {
             session.beginTransaction()
             var propertyType = UserPropertyType(name = typeName)
 
-            if (description != null)
-                propertyType = propertyType.copy(description = description)
-
             session.save(propertyType)
             session.transaction.commit()
             session.close()
-            propertyType.id
+            propertyType.id ?: 0
         } catch (ex: Exception) {
             if (session != null) session.close()
             logger.error(ex.message + " sessionFactory")
@@ -165,16 +160,17 @@ class HibernateUtil {
 
     /**
      * Adding user property to postgres database
-     * @param id entity id in database, default = auto
      * @param value value of user property (e.g test@gmail.com)
      * @param propertyType type of this property
      * @param propertyStatus status of this property
-     * @return if of added property
+     * @param userId id of user with this property
+     * @return id of added property, if id = 0 - not added
      */
     fun addUserProperty(
         value: String,
         propertyType: UserPropertyType,
-        propertyStatus: UserPropertyStatus? = null
+        propertyStatus: UserPropertyStatus? = null,
+        userId: Int
     ): Int {
         var session: Session? = null
 
@@ -186,13 +182,19 @@ class HibernateUtil {
             session = sessionFactory!!.openSession()
             session.beginTransaction()
 
+
             val userProperty =
-                UserProperty(value = value, userPropertyType = propertyType, userPropertyStatus = propertyStatus)
+                UserProperty(
+                    value = value,
+                    userPropertyType = propertyType,
+                    userPropertyStatus = propertyStatus,
+                    userId = getEntity(userId, User())
+                )
 
             session.save(userProperty)
             session.transaction.commit()
             session.close()
-            userProperty.id
+            userProperty.id ?: 0
         } catch (ex: Exception) {
             if (session != null) session.close()
             logger.error(ex.message + " sessionFactory")
@@ -205,14 +207,12 @@ class HibernateUtil {
      * @param firstName users first name
      * @param lastName users last name
      * @param middleName users middle name
-     * @param userProperties set of users Property
-     * @return id of added user
+     * @return id of added user, if id = 0 - not added
      */
     fun addUser(
         firstName: String,
         lastName: String,
-        middleName: String,
-        userProperties: Set<UserProperty>
+        middleName: String
     ): Int {
         var session: Session? = null
 
@@ -228,8 +228,7 @@ class HibernateUtil {
                 User(
                     firstName = firstName,
                     lastName = lastName,
-                    middleName = middleName,
-                    userProperties = userProperties
+                    middleName = middleName
                 )
 
             session.save(user)
@@ -243,17 +242,19 @@ class HibernateUtil {
         }
     }
 
+    //TODO: TEST THIS FUNCTION on adding and result!
     /**
      * Add UserCredentials to postgres database
      * @param username users username
      * @param password users password
-     * @return id of added UserCredentials
+     * @param userId user id, with credentials
+     * @return true if added else false
      */
     fun addUserCredentials(
         username: String,
         password: String,
         userId: Int
-    ): Int {
+    ): Boolean {
         var session: Session? = null
 
         if (sessionFactory == null || sessionFactory!!.isClosed)
@@ -273,11 +274,11 @@ class HibernateUtil {
             session.save(userCredentials)
             session.transaction.commit()
             session.close()
-            userCredentials.id
+            true
         } catch (ex: Exception) {
             if (session != null) session.close()
             logger.error(ex.message + " sessionFactory")
-            0
+            false
         }
     }
 
