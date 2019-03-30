@@ -10,6 +10,7 @@ data class User(
 
     @Id
     @Column(name = "id")
+    @NotNull
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Int = 0,
 
@@ -33,10 +34,5 @@ data class User(
     @OneToMany(cascade = [CascadeType.ALL],fetch = FetchType.EAGER)
     @JoinColumn(name = "userid")
     @NotNull
-    val userPropertys: Set<UserProperty>?=null,
-
-    @OneToOne(cascade = [CascadeType.ALL])
-    @NotNull
-    @JoinColumn(name = "credentialsId")
-    val credentials: UserCredentials?=null
+    val userProperties: Set<UserProperty>?=null
 )

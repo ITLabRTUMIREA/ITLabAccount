@@ -28,4 +28,6 @@ data class UserProperty(
     @JoinColumn(name = "userPropertyStatusId")
     @Cascade(org.hibernate.annotations.CascadeType.SAVE_UPDATE)
     val userPropertyStatus: UserPropertyStatus? = null
+
+
 )

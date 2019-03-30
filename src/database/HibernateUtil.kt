@@ -29,7 +29,7 @@ class HibernateUtil {
         configuration.addAnnotatedClass(UserPropertyStatus::class.java)
         configuration.addAnnotatedClass(database.user.UserPropertyType::class.java)
 
-        configuration.configure("../resources/hibernate.cfg.xml")
+        configuration.configure("hibernate.cfg.xml")
 
         if (Config("resources/applicationSecure.conf").config != null) {
 
@@ -205,19 +205,15 @@ class HibernateUtil {
      * @param firstName users first name
      * @param lastName users last name
      * @param middleName users middle name
-     * @param refreshTokens set of users RefreshToken
-     * @param userPropertys set of users Property
-     * @param credentialsId users credentialsId
+     * @param userProperties set of users Property
      * @return id of added user
      */
     fun addUser(
-        firstName:String,
-        lastName:String,
-        middleName:String,
-        refreshTokens:Set<RefreshToken>,
-        userPropertys:Set<UserProperty>,
-        credentialsId:UserCredentials
-    ) : Int {
+        firstName: String,
+        lastName: String,
+        middleName: String,
+        userProperties: Set<UserProperty>
+    ): Int {
         var session: Session? = null
 
         if (sessionFactory == null || sessionFactory!!.isClosed)
@@ -233,9 +229,7 @@ class HibernateUtil {
                     firstName = firstName,
                     lastName = lastName,
                     middleName = middleName,
-                    refreshTokens = refreshTokens,
-                    userPropertys = userPropertys,
-                    credentials = credentialsId
+                    userProperties = userProperties
                 )
 
             session.save(user)
@@ -256,9 +250,10 @@ class HibernateUtil {
      * @return id of added UserCredentials
      */
     fun addUserCredentials(
-        username:String,
-        password: String
-    ) : Int {
+        username: String,
+        password: String,
+        userId: Int
+    ): Int {
         var session: Session? = null
 
         if (sessionFactory == null || sessionFactory!!.isClosed)
@@ -272,7 +267,8 @@ class HibernateUtil {
             val userCredentials =
                 UserCredentials(
                     username = username,
-                    password = password
+                    password = password,
+                    userId = getEntity(userId, User())
                 )
             session.save(userCredentials)
             session.transaction.commit()
@@ -308,6 +304,25 @@ class HibernateUtil {
             logger.error(ex.message + " sessionFactory")
             null
         }
+    }
+
+    /**
+     * Getting propertyStatusByValue
+     * @param value - value of statusProperty
+     * @return userPropertyStatus if found else null
+     */
+    fun getUserPropertyStatusByValue(value: String): UserPropertyStatus? {
+        val entities = getEntities(UserPropertyStatus())
+        var entity: UserPropertyStatus? = null
+        if (entities != null) {
+            for (it in entities) {
+                if (it.value == value) {
+                    entity = it
+                    break
+                }
+            }
+        }
+        return entity
     }
 
     /**

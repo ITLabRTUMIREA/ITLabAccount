@@ -1,6 +1,6 @@
 package database.user
 
-import database.user.User
+import com.sun.istack.NotNull
 import javax.persistence.*
 
 @Entity
@@ -18,5 +18,10 @@ data class UserCredentials(
 
     @Basic
     @Column(name = "password",insertable = true)
-    val password: String="123"
+    val password: String="",
+
+    @OneToOne(cascade = [CascadeType.ALL])
+    @NotNull
+    @JoinColumn(name = "userId")
+    val userId: User?=null
 )
