@@ -188,7 +188,7 @@ class HibernateUtil {
                     value = value,
                     userPropertyType = propertyType,
                     userPropertyStatus = propertyStatus,
-                    userId = getEntity(userId, User())
+                    user = getEntity(userId, User())
                 )
 
             session.save(userProperty)
@@ -269,7 +269,7 @@ class HibernateUtil {
                 UserCredentials(
                     username = username,
                     password = password,
-                    userId = getEntity(userId, User())
+                    user = getEntity(userId, User())
                 )
             session.save(userCredentials)
             session.transaction.commit()

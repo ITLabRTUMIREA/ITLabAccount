@@ -17,7 +17,7 @@ data class UserProperty(
     val value: String? = null,
 
     @OneToOne
-    @JoinColumn(name = "userpropertytype_id", nullable = true)
+    @JoinColumn(name = "userpropertytype_id", nullable = false)
     @Cascade(org.hibernate.annotations.CascadeType.SAVE_UPDATE)
     val userPropertyType: UserPropertyType? = null,
 
@@ -26,8 +26,8 @@ data class UserProperty(
     @Cascade(org.hibernate.annotations.CascadeType.SAVE_UPDATE)
     val userPropertyStatus: UserPropertyStatus? = null,
 
-    @OneToOne(cascade = [CascadeType.ALL])
+    @OneToOne
     @JoinColumn(name = "user_id", nullable = false)
-    val userId: User? = null
+    val user: User? = null
 
 )

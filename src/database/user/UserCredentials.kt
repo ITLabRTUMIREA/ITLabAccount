@@ -16,8 +16,8 @@ data class UserCredentials(
     @Column(name = "password", insertable = true, nullable = false)
     val password: String? = null,
 
-    @OneToOne(cascade = [CascadeType.ALL])
+    @OneToOne
     @NotNull
-    @JoinColumn(name = "user_id", nullable = false, insertable = false)
-    val userId: User? = null
+    @JoinColumn(name = "user_id", nullable = false)
+    val user: User? = null
 )

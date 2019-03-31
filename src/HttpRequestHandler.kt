@@ -47,8 +47,6 @@ fun Application.module(testing: Boolean = true) {
 //        }
 //    }
 
-    //TODO: Refactor code and do more readable ?
-
     val hibernateUtil = HibernateUtil().setUpSession()
     install(Routing) {
 
@@ -98,7 +96,7 @@ fun Application.module(testing: Boolean = true) {
                     logger.info("UserPropertyStatus added to postgres database with id = $id")
                     call.respond(result)
                 } else {
-                    call.response.status(HttpStatusCode.InternalServerError)
+                    call.response.status(HttpStatusCode.BadRequest)
                 }
 
 
@@ -202,7 +200,7 @@ fun Application.module(testing: Boolean = true) {
                     logger.info("UserPropertyType added to postgres database with id = $id")
                     call.respond(result)
                 } else {
-                    call.response.status(HttpStatusCode.InternalServerError)
+                    call.response.status(HttpStatusCode.BadRequest)
                 }
             } else {
                 logger.error("Can't add entity UserPropertyType to postgres database")
@@ -263,10 +261,12 @@ fun Application.module(testing: Boolean = true) {
         }
 
         get("api/database/userProperty") {
+
             val id = when (val a = call.parameters["id"]) {
                 "all", "0", "*" -> 0
                 else -> a?.toIntOrNull()
             }
+
             if (id != null) {
                 val userProperty = when (id) {
                     0 -> hibernateUtil.getEntities(UserProperty())
@@ -295,12 +295,13 @@ fun Application.module(testing: Boolean = true) {
 
             val value = tmp?.get("value")
             val typeId = tmp?.get("propertytype_id")
-            val statusId = tmp?.get("propertystatus_id")
             val userId = tmp?.get("user_id")
 
-            if (value != null && typeId != null && statusId != null && userId != null) {
+            if (value != null && typeId != null && userId != null) {
+
                 val userPropertyType = hibernateUtil.getEntity(typeId.asInt, UserPropertyType())
-                val userPropertyStatus = hibernateUtil.getEntity(statusId.asInt, UserPropertyStatus())
+                val userPropertyStatus = hibernateUtil.getUserPropertyStatusByValue("not confirmed")
+
                 if (userPropertyType != null && userPropertyStatus != null) {
                     val result = JsonObject()
 
@@ -310,10 +311,13 @@ fun Application.module(testing: Boolean = true) {
                         propertyStatus = userPropertyStatus,
                         userId = userId.asInt
                     )
-
-                    result.addProperty("id", id)
-                    logger.info("UserProperty added to postgres database with id = $id")
-                    call.respond(result)
+                    if (id != 0) {
+                        result.addProperty("id", id)
+                        logger.info("UserProperty added to postgres database with id = $id")
+                        call.respond(result)
+                    } else {
+                        call.response.status(HttpStatusCode.BadRequest)
+                    }
                 } else {
                     logger.error("id of userPropertyType or userPropertyStatus is invalid")
                     call.response.status(HttpStatusCode.NotFound)
@@ -324,24 +328,35 @@ fun Application.module(testing: Boolean = true) {
             }
         }
 
-//        post("api/database/addFullUserProperty") {
-//            val tmp: JsonObject? =
-//                Gson().fromJson(InputStreamReader(call.receiveStream(), "UTF-8"), JsonObject::class.java)
-//
-//            val value = tmp?.get("value")
-//            val propertyType = Gson().fromJson(tmp?.get("UserPropertyType"), UserPropertyType()::class.java)
-//            val propertyStatus = Gson().fromJson(tmp?.get("UserPropertyStatus"), UserPropertyStatus()::class.java)
-//            if (value != null && propertyType != null && propertyStatus != null) {
-//                val id = hibernateUtil.addUserProperty(value.asString, propertyType, propertyStatus)
-//                val result = JsonObject()
-//                result.addProperty("id", id)
-//                call.respond(result)
-//                logger.info("UserProperty added to postgres database with id = $id")
-//            } else {
-//                logger.error("Can't add entity UserProperty to postgres database")
-//                call.response.status(HttpStatusCode.BadRequest)
-//            }
-//        }
+        post("api/database/addFullUserProperty") {
+            val tmp: JsonObject? =
+                Gson().fromJson(InputStreamReader(call.receiveStream(), "UTF-8"), JsonObject::class.java)
+
+            val value = tmp?.get("value")
+            val propertyType = Gson().fromJson(tmp?.get("UserPropertyType"), UserPropertyType()::class.java)
+            val propertyStatus = Gson().fromJson(tmp?.get("UserPropertyStatus"), UserPropertyStatus()::class.java)
+            val userId = tmp?.get("userId")
+
+            if (value != null && propertyType != null && propertyStatus != null && userId != null) {
+                val id = hibernateUtil.addUserProperty(
+                    value = value.asString,
+                    propertyType = propertyType,
+                    propertyStatus = propertyStatus,
+                    userId = userId.asInt
+                )
+                if (id != 0) {
+                    val result = JsonObject()
+                    result.addProperty("id", id)
+                    call.respond(result)
+                    logger.info("UserProperty added to postgres database with id = $id")
+                } else {
+                    call.response.status(HttpStatusCode.BadRequest)
+                }
+            } else {
+                logger.error("Can't add entity UserProperty to postgres database")
+                call.response.status(HttpStatusCode.BadRequest)
+            }
+        }
 
         put("api/database/userProperty") {
             val id = call.parameters["id"]?.toIntOrNull()
@@ -351,8 +366,8 @@ fun Application.module(testing: Boolean = true) {
                     val tmp: JsonObject? =
                         Gson().fromJson(InputStreamReader(call.receiveStream(), "UTF-8"), JsonObject::class.java)
                     val value = tmp?.get("value")
-                    val typeId = tmp?.get("typeId")
-                    val statusId = tmp?.get("statusId")
+                    val typeId = tmp?.get("propertytype_id")
+                    val statusId = tmp?.get("propertystatus_id")
 
                     if (value != null) {
                         userProperty = userProperty.copy(value = value.asString)
@@ -411,6 +426,9 @@ fun Application.module(testing: Boolean = true) {
                 "all", "0", "*" -> 0
                 else -> a?.toIntOrNull()
             }
+
+            //val type = call.parameters["type"].toString()
+
             if (id != null) {
                 val user = when (id) {
                     0 -> hibernateUtil.getEntities(User())
@@ -433,62 +451,46 @@ fun Application.module(testing: Boolean = true) {
             }
         }
 
-//        put("api/database/user") {
-//            val id = call.parameters["id"]?.toIntOrNull()
-//            if (id != null) {
-//                var user = hibernateUtil.getEntity(id, User())
-//                if (user != null) {
-//                    val tmp: JsonObject? =
-//                        Gson().fromJson(InputStreamReader(call.receiveStream(), "UTF-8"), JsonObject::class.java)
-//                    val fName = tmp?.get("firstName")
-//                    val lName = tmp?.get("lastName")
-//                    val mName = tmp?.get("middleName")
-//
-//                    val userProperties = tmp?.get("userPropertiesId")?.asJsonArray
-//
-//                    if (fName != null) {
-//                        user = user.copy(firstName = fName.asString)
-//                    }
-//
-//                    if (lName != null) {
-//                        user = user.copy(lastName = lName.asString)
-//                    }
-//
-//                    if (mName != null) {
-//                        user = user.copy(middleName = mName.asString)
-//                    }
-//
-//                    if (userProperties != null) {
-//                        val properties = HashSet<UserProperty>()
-//                        userProperties.forEach {
-//                            val property = hibernateUtil.getEntity(
-//                                it.asInt,
-//                                UserProperty()
-//                            )
-//                            if (property != null) {
-//                                properties.add(property)
-//                            }
-//                        }
-//                        user = user.copy(userProperties = properties)
-//                    }
-//
-//                    if (hibernateUtil.updateEntity(user)) {
-//                        logger.info("Entity User with id = $id is updated successfully")
-//                        call.response.status(HttpStatusCode.OK)
-//                    } else {
-//                        logger.info("Entity User with id = $id is not updated")
-//                        call.response.status(HttpStatusCode.Conflict)
-//                    }
-//
-//                } else {
-//                    logger.info("Entity User with id = $id is not found")
-//                    call.response.status(HttpStatusCode.NotFound)
-//                }
-//            } else {
-//                logger.error("Parameter id is incorrect")
-//                call.response.status(HttpStatusCode.BadRequest)
-//            }
-//        }
+        put("api/database/user") {
+            val id = call.parameters["id"]?.toIntOrNull()
+            if (id != null) {
+                var user = hibernateUtil.getEntity(id, User())
+                if (user != null) {
+                    val tmp: JsonObject? =
+                        Gson().fromJson(InputStreamReader(call.receiveStream(), "UTF-8"), JsonObject::class.java)
+                    val firstName = tmp?.get("firstName")
+                    val lastName = tmp?.get("lastName")
+                    val middleName = tmp?.get("middleName")
+
+                    if (firstName != null) {
+                        user = user.copy(firstName = firstName.asString)
+                    }
+
+                    if (lastName != null) {
+                        user = user.copy(lastName = lastName.asString)
+                    }
+
+                    if (middleName != null) {
+                        user = user.copy(middleName = middleName.asString)
+                    }
+
+                    if (hibernateUtil.updateEntity(user)) {
+                        logger.info("Entity User with id = $id is updated successfully")
+                        call.response.status(HttpStatusCode.OK)
+                    } else {
+                        logger.info("Entity User with id = $id is not updated")
+                        call.response.status(HttpStatusCode.Conflict)
+                    }
+
+                } else {
+                    logger.info("Entity User with id = $id is not found")
+                    call.response.status(HttpStatusCode.NotFound)
+                }
+            } else {
+                logger.error("Parameter id is incorrect")
+                call.response.status(HttpStatusCode.BadRequest)
+            }
+        }
 
         delete("api/database/user") {
             val id = when (val a = call.parameters["id"]) {
@@ -510,164 +512,82 @@ fun Application.module(testing: Boolean = true) {
             }
         }
 
-        get("api/database/userCredentials") {
-            val id = when (val a = call.parameters["id"]) {
-                "all", "0", "*" -> 0
-                else -> a?.toIntOrNull()
-            }
-            if (id != null) {
-                val user = when (id) {
-                    0 -> hibernateUtil.getEntities(UserCredentials())
-                    else -> hibernateUtil.getEntity(id, UserCredentials())
-                }
-
-                if (user != null) {
-                    val jsonElement = JsonParser().parse(Gson().toJson(user)) as JsonElement
-                    val jsonObject = JsonObject()
-                    jsonObject.add("data", jsonElement)
-                    logger.info("Entity userCredentials with id = $id is gotten successfully")
-                    call.respond(jsonObject)
-                } else {
-                    logger.error("Entity userCredentials with id = $id is not gotten")
-                    call.response.status(HttpStatusCode.NotFound)
-                }
-            } else {
-                logger.error("Parameter id is incorrect")
-                call.response.status(HttpStatusCode.BadRequest)
-            }
-        }
-
-        post("api/database/addUserCredentials") {
+        post("api/registration") {
             val tmp: JsonObject? =
                 Gson().fromJson(InputStreamReader(call.receiveStream(), "UTF-8"), JsonObject::class.java)
-            val username = tmp?.get("username")
-            val password = tmp?.get("password")
-            val userId = tmp?.get("userId")
-            if (username != null && password != null && userId != null) {
-                val result = JsonObject()
-                val id = hibernateUtil.addUserCredentials(
-                    username = username.asString,
-                    password = password.asString,
-                    userId = userId.asInt
+
+            val userCredentials = Gson().fromJson(tmp?.get("userCredentials"), JsonObject::class.java)
+            val userInfo = Gson().fromJson(tmp?.get("user"), JsonObject::class.java)
+            val userProperties = Gson().fromJson(tmp?.get("userProperty"), JsonArray::class.java)
+
+            if (userCredentials != null && userInfo != null && userProperties != null) {
+
+                val id = hibernateUtil.addUser(
+                    firstName = userInfo.get("firstName").asString,
+                    lastName = userInfo.get("lastName").asString,
+                    middleName = userInfo.get("middleName").asString
                 )
-                result.addProperty("id", id)
-                logger.info("UserPropertyType added to postgres database with id = $id")
+
+                val result = JsonObject()
+
+                if (id != 0) {
+
+                    val resultCredAdding = hibernateUtil.addUserCredentials(
+                        username = userCredentials.get("username").asString,
+                        password = userCredentials.get("password").asString,
+                        userId = id
+                    )
+
+                    if (resultCredAdding) {
+                        userProperties.forEach {
+                            val property = it.asJsonObject
+                            val value = property.get("value").asString
+                            val userPropertyType =
+                                hibernateUtil.getEntity(property.get("userpropertytype_id").asInt, UserPropertyType())
+
+                            val userPropertyStatus = hibernateUtil.getUserPropertyStatusByValue("not confirmed")
+
+                            if (value != null && userPropertyType != null && userPropertyStatus != null) {
+
+                                val propertyId = hibernateUtil.addUserProperty(
+                                    userId = id,
+                                    value = value,
+                                    propertyType = userPropertyType,
+                                    propertyStatus = userPropertyStatus
+                                )
+
+                                if (propertyId == 0) {
+                                    logger.error(
+                                        "Error adding ${userPropertyType.name} for user ${userInfo.get("firstName").asString} ${userInfo.get(
+                                            "lastName"
+                                        ).asString}"
+                                    )
+                                    result.addProperty(userPropertyType.name, "error")
+                                }
+                            }
+                        }
+
+                        logger.info("User added to postgres database with id = $id")
+                        result.addProperty("id", id)
+
+                    } else {
+                        logger.error("Error adding credentials")
+                        result.addProperty("credentials", "error")
+                        hibernateUtil.deleteEntities(id, User())
+                        call.response.status(HttpStatusCode.BadRequest)
+                    }
+
+                } else {
+                    logger.error("Can't add user ${userInfo.get("firstName").asString} ${userInfo.get("lastName").asString} to database")
+                    call.response.status(HttpStatusCode.BadRequest)
+                }
+
                 call.respond(result)
             } else {
-                logger.error("Can't add entity UserPropertyType to postgres database")
+                logger.error("Can't add entity User to postgres database")
                 call.response.status(HttpStatusCode.BadRequest)
             }
         }
-
-        put("api/database/userCredentials") {
-            val id = call.parameters["id"]?.toIntOrNull()
-            if (id != null) {
-                var userCredentials = hibernateUtil.getEntity(id, UserCredentials())
-                if (userCredentials != null) {
-                    val tmp: JsonObject? =
-                        Gson().fromJson(InputStreamReader(call.receiveStream(), "UTF-8"), JsonObject::class.java)
-                    val password = tmp?.get("password")
-                    if (password != null) {
-                        userCredentials = userCredentials.copy(password = password.asString)
-                    }
-
-                    if (hibernateUtil.updateEntity(userCredentials)) {
-                        logger.info("Entity userCredentials with id = $id is updated successfully")
-                        call.response.status(HttpStatusCode.OK)
-                    } else {
-                        logger.info("Entity userCredentials with id = $id is not updated")
-                        call.response.status(HttpStatusCode.Conflict)
-                    }
-
-                } else {
-                    logger.info("Entity UserProperty with id = $id is not found")
-                    call.response.status(HttpStatusCode.NotFound)
-                }
-            } else {
-                logger.error("Parameter id is incorrect")
-                call.response.status(HttpStatusCode.BadRequest)
-            }
-        }
-
-        delete("api/database/userCredentials") {
-            val id = when (val a = call.parameters["id"]) {
-                "all", "0", "*" -> 0
-                else -> a?.toIntOrNull()
-            }
-            if (id != null) {
-                val resultOfDeleting = hibernateUtil.deleteEntities(id, UserCredentials())
-                if (resultOfDeleting) {
-                    logger.info("Entity userCredentials with id = $id is deleted successfully")
-                    call.response.status(HttpStatusCode.OK)
-                } else {
-                    logger.error("Entity userCredentials with id = $id is not deleted")
-                    call.response.status(HttpStatusCode.NotFound)
-                }
-            } else {
-                logger.error("Parameter id is incorrect")
-                call.response.status(HttpStatusCode.BadRequest)
-            }
-        }
-
-//        post("api/registration") {
-//            val tmp: JsonObject? =
-//                Gson().fromJson(InputStreamReader(call.receiveStream(), "UTF-8"), JsonObject::class.java)
-//            val userCredentials = Gson().fromJson(tmp?.get("userCredentials"), JsonObject::class.java)
-//            val userInfo = Gson().fromJson(tmp?.get("user"), JsonObject::class.java)
-//            val userProperties = Gson().fromJson(tmp?.get("userProperty"), JsonArray::class.java)
-//            if (userCredentials != null && userInfo != null && userProperties != null) {
-//
-//                val userPropertiesInSet = HashSet<UserProperty>()
-//
-//
-//                val id = hibernateUtil.addUser(
-//                    firstName = userInfo.get("firstName").asString,
-//                    lastName = userInfo.get("lastName").asString,
-//                    middleName = userInfo.get("middleName").asString,
-//                    userProperties = userPropertiesInSet
-//                )
-//                if (id != 0) {
-//
-//                    userProperties.forEach {
-//                        val property = it.asJsonObject
-//                        val value = property.get("value").asString
-//                        val userPropertyType =
-//                            hibernateUtil.getEntity(property.get("userPropertyTypeId").asInt, UserPropertyType())
-//
-//                        val userPropertyStatus = hibernateUtil.getUserPropertyStatusByValue("not confirmed")
-//
-//                        if (value != null && userPropertyType != null && userPropertyStatus != null) {
-//                            userPropertiesInSet.add(
-//                                UserProperty(
-//                                    //user
-//                                    value = value,
-//                                    userPropertyType = userPropertyType,
-//                                    userPropertyStatus = userPropertyStatus
-//                                )
-//                            )
-//                        }
-//                    }
-//
-//                    hibernateUtil.addUserCredentials(
-//                        username = userCredentials.get("username").asString,
-//                        password = userCredentials.get("password").asString,
-//                        userId = id
-//                    )
-//                    logger.info("User added to postgres database with id = $id")
-//                } else {
-//                    logger.error("Can't add user ${userInfo.get("firstName").asString} ${userInfo.get("lastName").asString} to database")
-//                    call.response.status(HttpStatusCode.BadRequest)
-//                }
-//
-//                val result = JsonObject()
-//                result.addProperty("id", id)
-//
-//                call.respond(result)
-//            } else {
-//                logger.error("Can't add entity User to postgres database")
-//                call.response.status(HttpStatusCode.BadRequest)
-//            }
-//        }
 
         post("api/authentication/login") {
 
