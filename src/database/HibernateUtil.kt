@@ -380,7 +380,6 @@ class HibernateUtil {
             session.transaction.commit()
             session.close()
 
-
             true
         } catch (ex: Exception) {
             if (session != null) session.close()
