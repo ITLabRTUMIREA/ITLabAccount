@@ -19,8 +19,7 @@ import io.ktor.request.receiveStream
 fun Application.module(testing: Boolean = true) {
 
     val logger = LoggerFactory.getLogger("HttpRequestHandler")
-
-    //val userSource: UserSource = UserSourceImpl()
+    
     install(ContentNegotiation) {
         gson {
             setPrettyPrinting()
@@ -589,66 +588,5 @@ fun Application.module(testing: Boolean = true) {
             }
         }
 
-        post("api/authentication/login") {
-
-            val hibernateUtil = HibernateUtil()
-            hibernateUtil.setUpSession()
-            //hibernateUtil.addRefreshToken()
-            //logger.info("HERE")
-            //            val response = JsonObject()
-//            val credentials = call.receive< ru.rtuitlab.account.authorization.UserCredential>()
-//
-//            val user = userSource.findUserByCredentials(credentials)
-//            val accessToken = JwtConfig.makeAccessToken(user)
-//            val refreshToken = JwtConfig.makeRefreshToken(user)
-//            response.addProperty("accessToken", accessToken)
-//            response.addProperty("refreshToken", refreshToken)
-//            response.addProperty("expiresIn", JWT.decode(accessToken).expiresAt.time)
-//
-//            call.respond(response)
-
-        }
-
-
-//        get("optional") {
-//            val hibernateUtil = HibernateUtil()
-//            hibernateUtil.setUpSession()
-//            hibernateUtil.addRefreshToken()
-//            //val user = call.user
-//            //val response = if (user != null) "authenticated!" else "optional"
-//            call.respond("OK")
-//        }
-
-        /**
-         * All [Route]s in the authentication block are secured.
-         */
-//        authenticate {
-//            route("secret") {
-//                get {
-//                    //val user = call.user!!
-//                    //call.respond(user.countries)
-//                }
-//
-//                put {
-//                    println("PUT")
-//                    TODO("All your secret routes can follow here")
-//                }
-//
-//            }
-//        }
-
-//        /**
-//         * Routes with optional authentication
-//         */
-//        authenticate(optional = true) {
-//            get("optional") {
-//                val hibernateUtil = HibernateUtil()
-//                hibernateUtil.setUpSession()
-//                hibernateUtil.addRefreshToken()
-//                //val user = call.user
-//                //val response = if (user != null) "authenticated!" else "optional"
-//                call.respond("OK")
-//            }
-//        }
     }
 }
