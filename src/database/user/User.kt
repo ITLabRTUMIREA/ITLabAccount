@@ -1,10 +1,11 @@
 package database.user
 
+import io.ktor.auth.Principal
 import javax.persistence.*
 
 @Entity
 @Table(name = "\"User\"")
-data class User(
+data class User (
 
     @Id
     @Column(name = "id", nullable = false)
@@ -23,4 +24,4 @@ data class User(
     @Column(name = "middlename", nullable = false)
     val middleName: String? = null
 
-)
+) : Principal

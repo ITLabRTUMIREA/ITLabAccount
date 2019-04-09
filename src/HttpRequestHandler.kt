@@ -1,7 +1,5 @@
 @file:Suppress("IMPLICIT_CAST_TO_ANY")
 
-import com.auth0.jwt.JWT
-import com.auth0.jwt.algorithms.Algorithm
 import com.google.gson.*
 import io.ktor.features.ContentNegotiation
 import io.ktor.application.Application
@@ -10,15 +8,17 @@ import io.ktor.application.install
 import io.ktor.routing.*
 import org.slf4j.LoggerFactory
 import database.user.*
-import io.ktor.application.*
+import io.ktor.application.ApplicationCall
+import io.ktor.auth.Authentication
+import io.ktor.auth.authenticate
+import io.ktor.auth.jwt.jwt
 import io.ktor.http.HttpStatusCode
 import io.ktor.response.respond
 import java.io.InputStreamReader
 import io.ktor.request.receiveStream
-import utils.Checker
-import java.time.LocalDateTime
-import java.time.ZoneOffset
-import java.util.*
+import utils.Config
+import io.ktor.application.call
+import io.ktor.auth.authentication
 
 @Suppress("requestHandler")
 @kotlin.jvm.JvmOverloads
@@ -52,6 +52,26 @@ fun Application.module(testing: Boolean = true) {
 ////            }
 //        }
 //    }
+
+    install(Authentication) {
+        jwt {
+            val config = Config().config!!
+            if (config.hasPath("ktor.jwt.realm")) {
+                realm = config.getString("ktor.jwt.realm")
+                logger.info("Realm loaded from config = $realm")
+            } else {
+                realm = "ru.rtuitlab.account"
+                logger.info("Realm not loaded from config, default realm = $realm")
+            }
+            verifier(JwtConfig.verifier)
+            authSchemes("Token")
+            validate {
+                val payload = it.payload
+                HibernateUtil().getEntity(payload.getClaim("id").asInt(), User())
+            }
+        }
+    }
+
 
     val hibernateUtil = HibernateUtil().setUpSession()
     install(Routing) {
@@ -604,19 +624,8 @@ fun Application.module(testing: Boolean = true) {
                 // val someClass=HibernateUtil.getSomeClassByUserId(SomeCalss::class.java,userCredentials.user.id)
                 if (userCredentials != null && userCredentials.password == userPas.asString) {
                     val result = JsonObject()
-                    val refreshToken = JWT.create()
-                        .withClaim("id", userCredentials.user!!.id)
-                        //val role =someClass.getRole() or other params for claim
-                        .withClaim("role", "Admin")
-                        //-3 because local time hurry for 3 hours
-                        .withExpiresAt(Date.from(LocalDateTime.now().plusMonths(1).plusHours(-3).toInstant(ZoneOffset.UTC)))
-                        .sign(Algorithm.HMAC512(secert))
-                    val accessToken = JWT.create()
-                        .withClaim("id", userCredentials.user!!.id)
-                        .withClaim("role", "Admin")
-                        //-3 because local time hurry for 3 hours
-                        .withExpiresAt(Date.from(LocalDateTime.now().plusHours(10).toInstant(ZoneOffset.UTC)))
-                        .sign(Algorithm.HMAC512(secert))
+                    val refreshToken = JwtConfig.makeRefresh(userCredentials.user!!)
+                    val accessToken = JwtConfig.makeAccess(userCredentials.user)
                     result.addProperty("refreshToken", refreshToken)
                     result.addProperty("accessToken", accessToken)
                     call.respond(result)
@@ -630,82 +639,28 @@ fun Application.module(testing: Boolean = true) {
             }
         }
 
-        post("api/updateTokens") {
-            val tmp: JsonObject? =
-                Gson().fromJson(InputStreamReader(call.receiveStream(), "UTF-8"), JsonObject::class.java)
-            val refreshToken = tmp?.get("refreshToken")
-            if (refreshToken != null) {
+        authenticate {
+            //TODO: accept only refresh
+            get("api/updateTokens") {
+                val user = call.user
                 val result = JsonObject()
-                if (Checker().isTokenDecodable(refreshToken.asString)) {
-                    val userId = JWT.decode(refreshToken.asString).getClaim("id").asInt()
-                    // should be like this
-                    // val someClass=HibernateUtil.getSomeClassByUserId(SomeCalss::class.java,userId)
-                    // secret = someClass.getSecret()
-                    if (Checker().isTokenValid(refreshToken.asString, secert)) {
-                        val newRefreshToken = JWT.create()
-                            .withClaim("id", userId)
-                            //val role =someClass.getRole() or other params for claim
-                            .withClaim("role", "Admin")
-                            //-3 because local time hurry for 3 hours
-                            .withExpiresAt(
-                                Date.from(
-                                    LocalDateTime.now().plusMonths(1).plusHours(-3).toInstant(
-                                        ZoneOffset.UTC
-                                    )
-                                )
-                            )
-                            .sign(Algorithm.HMAC512(secert))
-                        val newAccessToken = JWT.create()
-                            .withClaim("id", userId)
-                            //val role =someClass.getRole() or other params for claim
-                            .withClaim("role", "Admin")
-                            //-3 because local time hurry for 3 hours
-                            .withExpiresAt(Date.from(LocalDateTime.now().plusHours(10).toInstant(ZoneOffset.UTC)))
-                            .sign(Algorithm.HMAC512(secert))
-                        result.addProperty("refreshToken", newRefreshToken)
-                        result.addProperty("accessToken", newAccessToken)
-                        call.respond(result)
-                    } else {
-                        logger.error("Token not valid")
-                        call.response.status(HttpStatusCode.BadRequest)
-                    }
+                if (user != null) {
+                    // also create new secret for user to make past tokens invalid (?)
+                    val refreshToken = JwtConfig.makeRefresh(user)
+                    val accessToken = JwtConfig.makeAccess(user)
+                    result.addProperty("refreshToken", refreshToken)
+                    result.addProperty("accessToken", accessToken)
+                    call.respond(result)
                 } else {
-                    logger.error("Wrong token")
+                    logger.error("Access denied")
                     call.response.status(HttpStatusCode.BadRequest)
                 }
-            } else {
-                logger.error("Wrong json")
-                call.response.status(HttpStatusCode.BadRequest)
-            }
-        }
-
-        post("api/someRequestWithToken") {
-            val tmp: JsonObject? =
-                Gson().fromJson(InputStreamReader(call.receiveStream(), "UTF-8"), JsonObject::class.java)
-            val refreshToken = tmp?.get("refreshToken")
-            val otherParams = tmp?.get("otherParams")
-            if (refreshToken != null && otherParams != null) {
-                val result = JsonObject()
-                if (Checker().isTokenDecodable(refreshToken.asString)) {
-                    val userId = JWT.decode(refreshToken.asString).getClaim("id").asInt()
-                    // should be like this
-                    // val someClass=HibernateUtil.getSomeClassByUserId(SomeCalss::class.java,userId)
-                    // secret = someClass.getSecret()
-                    if (Checker().isTokenValid(refreshToken.asString, secert)) {
-                        // method body
-                        call.respond(result)
-                    } else {
-                        logger.error("Token not valid")
-                        call.response.status(HttpStatusCode.BadRequest)
-                    }
-                } else {
-                    logger.error("Wrong token")
-                    call.response.status(HttpStatusCode.BadRequest)
-                }
-            } else {
-                logger.error("Wrong json")
-                call.response.status(HttpStatusCode.BadRequest)
             }
         }
     }
 }
+
+val ApplicationCall.user
+    get() = authentication.principal<User>()
+
+
