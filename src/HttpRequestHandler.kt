@@ -1,5 +1,6 @@
 @file:Suppress("IMPLICIT_CAST_TO_ANY")
 
+import com.auth0.jwt.JWT
 import com.google.gson.*
 import io.ktor.features.ContentNegotiation
 import io.ktor.application.Application
@@ -19,13 +20,15 @@ import io.ktor.request.receiveStream
 import utils.Config
 import io.ktor.application.call
 import io.ktor.auth.authentication
+import utils.JwtConfig
+import utils.JwtConfig.user
+import java.text.SimpleDateFormat
 
 @Suppress("requestHandler")
 @kotlin.jvm.JvmOverloads
 fun Application.module(testing: Boolean = true) {
 
     val logger = LoggerFactory.getLogger("HttpRequestHandler")
-    val secert: String = "Secret"
 
     install(ContentNegotiation) {
         gson {
@@ -36,7 +39,7 @@ fun Application.module(testing: Boolean = true) {
 
 //    install(Authentication) {
 //        jwt {
-//            verifier(JwtConfig.verifier)
+//            verifier(utils.JwtConfig.verifier)
 //            val config = Config().config!!
 //
 //            if(config.hasPath("ktor.jwt.realm")) {
@@ -55,19 +58,18 @@ fun Application.module(testing: Boolean = true) {
 
     install(Authentication) {
         jwt {
-            val config = Config().config!!
+            /*val config = Config().config!!
             if (config.hasPath("ktor.jwt.realm")) {
                 realm = config.getString("ktor.jwt.realm")
                 logger.info("Realm loaded from config = $realm")
             } else {
                 realm = "ru.rtuitlab.account"
                 logger.info("Realm not loaded from config, default realm = $realm")
-            }
+            }*/
+            realm = "ru.rtuitlab.account"
             verifier(JwtConfig.verifier)
-            authSchemes("Token")
             validate {
-                val payload = it.payload
-                HibernateUtil().getEntity(payload.getClaim("id").asInt(), User())
+                HibernateUtil().getEntity(it.payload.getClaim("user_id").asInt(), User())
             }
         }
     }
@@ -660,7 +662,5 @@ fun Application.module(testing: Boolean = true) {
     }
 }
 
-val ApplicationCall.user
-    get() = authentication.principal<User>()
 
 
