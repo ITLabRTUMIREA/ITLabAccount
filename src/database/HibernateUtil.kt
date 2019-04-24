@@ -326,7 +326,12 @@ class HibernateUtil {
         return entity
     }
 
-    fun getUserCredentialsByUserName(login:String) : UserCredentials? {
+    /**
+     * Getting userCredentials by username
+     * @param login - username login
+     * @return userCredentials if found else null
+     */
+    fun getUserCredentialsByUserName(login: String): UserCredentials? {
 
         var session: Session? = null
 

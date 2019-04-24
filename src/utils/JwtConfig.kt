@@ -17,21 +17,29 @@ object JwtConfig {
     private const val issuer = "ru.rtuitlab.account"
     private val algorithm = Algorithm.HMAC512(secret)
 
-    val verifier: JWTVerifier = JWT
+    val accessVerifier: JWTVerifier = JWT
         .require(algorithm)
         .withIssuer(issuer)
+        .withClaim("token_type", "access")
         .build()
 
+    val refreshVerifier: JWTVerifier = JWT
+        .require(algorithm)
+        .withIssuer(issuer)
+        .withClaim("token_type", "refresh")
+        .build()
 
     fun makeAccess(user: User): String = JWT.create()
         .withIssuer(issuer)
         .withClaim("user_id", user.id)
+        .withClaim("token_type", "access")
         .withExpiresAt(getExpiration(hours = 5))
         .sign(algorithm)
 
     fun makeRefresh(user: User): String = JWT.create()
         .withIssuer(issuer)
         .withClaim("user_id", user.id)
+        .withClaim("token_type", "refresh")
         .withExpiresAt(getExpiration(days = 10))
         .sign(algorithm)
 
