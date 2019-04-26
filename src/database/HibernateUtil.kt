@@ -327,6 +327,36 @@ class HibernateUtil {
     }
 
     /**
+     * Getting userCredentials by username
+     * @param login - username login
+     * @return userCredentials if found else null
+     */
+    fun getUserCredentialsByUserName(login: String): UserCredentials? {
+
+        var session: Session? = null
+
+        if (sessionFactory == null || sessionFactory!!.isClosed)
+            setUpSession()
+
+        return try {
+            session = sessionFactory!!.openSession()
+            session.beginTransaction()
+
+            val builder = session.criteriaBuilder
+            val criteria = builder.createQuery(UserCredentials::class.java)
+            val root = criteria.from(UserCredentials::class.java)
+            criteria.select(root).where(builder.equal(root.get<String>("username"), login))
+            val userCredentials = session.createQuery(criteria).resultList
+            userCredentials[0]
+
+        } catch (ex: Exception) {
+            session?.close()
+            logger.error(ex.message + " sessionFactory")
+            null
+        }
+    }
+
+    /**
      * Getting entities from table
      * @param classRef class reference T
      * @return List<T>
