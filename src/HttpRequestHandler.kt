@@ -17,6 +17,7 @@ import io.ktor.response.respond
 import java.io.InputStreamReader
 import io.ktor.request.receiveStream
 import io.ktor.application.call
+import utils.Config
 import utils.JwtConfig
 import utils.JwtConfig.user
 
@@ -33,29 +34,10 @@ fun Application.module(testing: Boolean = true) {
         }
     }
 
-//    install(Authentication) {
-//        jwt {
-//            accessVerifier(utils.JwtConfig.accessVerifier)
-//            val config = Config().config!!
-//
-//            if(config.hasPath("ktor.jwt.realm")) {
-//                realm = config.getString("ktor.jwt.realm")
-//                logger.info("Realm loaded from config = $realm")
-//            }else{
-//                realm = "ru.rtuitlab.account"
-//                logger.info("Realm not loaded from config, default realm = $realm")
-//            }
-//
-////            validate {
-////                it.payload.id.toInt().let (userSource::findUserById)
-////            }
-//        }
-//    }
-
     install(Authentication) {
 
         jwt(name = "access") {
-            realm = "ru.rtuitlab.account"
+            realm = Config().loadPath("ktor.jwt.realm") ?: "ru.rtuitlab.account"
             verifier(JwtConfig.accessVerifier)
             validate {
                 HibernateUtil().getEntity(it.payload.getClaim("user_id").asInt(), User())
@@ -63,7 +45,7 @@ fun Application.module(testing: Boolean = true) {
         }
 
         jwt(name = "refresh") {
-            realm = "ru.rtuitlab.account"
+            realm = Config().loadPath("ktor.jwt.realm") ?: "ru.rtuitlab.account"
             verifier(JwtConfig.refreshVerifier)
             validate {
                 HibernateUtil().getEntity(it.payload.getClaim("user_id").asInt(), User())
@@ -185,6 +167,7 @@ fun Application.module(testing: Boolean = true) {
                     // also create new secret for user to make past tokens invalid (?)
                     val refreshToken = JwtConfig.makeRefresh(user)
                     val accessToken = JwtConfig.makeAccess(user)
+
                     result.addProperty("refreshToken", refreshToken)
                     result.addProperty("refresh_expire_in", JWT.decode(refreshToken).expiresAt.time)
                     result.addProperty("accessToken", accessToken)

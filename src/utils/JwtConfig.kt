@@ -10,8 +10,6 @@ import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.util.*
 
-
-
 object JwtConfig {
     private const val secret = "secret"
     private const val issuer = "ru.rtuitlab.account"

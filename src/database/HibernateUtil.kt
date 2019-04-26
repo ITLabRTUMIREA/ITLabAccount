@@ -350,7 +350,7 @@ class HibernateUtil {
             userCredentials[0]
 
         } catch (ex: Exception) {
-            if (session != null) session.close()
+            session?.close()
             logger.error(ex.message + " sessionFactory")
             null
         }
