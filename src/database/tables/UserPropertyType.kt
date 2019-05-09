@@ -1,4 +1,4 @@
-package database.user
+package database.tables
 
 import javax.persistence.*
 

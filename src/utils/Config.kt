@@ -24,7 +24,7 @@ class Config {
             }
         }
         if (config != null && !config!!.isEmpty) {
-            logger.info("Config loaded")
+            logger.info("Config $pathToConfFile loaded")
         } else {
             logger.error("Can't load config")
         }
@@ -32,7 +32,7 @@ class Config {
 
 
     /**
-     * if u want default path: src/main/resources/application.conf, then pathToConfFile must be null
+     * if u want default path: resources/applicationSecure.conf, then pathToConfFile must be null
      * @param pathToConfFile path to config file or null
      */
     fun updatePathToConfFile(pathToConfFile: String?) {
@@ -41,10 +41,11 @@ class Config {
 
 
     /**
-     * Default constrictor if config located in the src/main/resources/application.conf
+     * Default constrictor if config located in the resources/applicationSecure.conf
      */
     constructor() {
         logger.info("Loading config")
+        if (pathToConfFile == null) pathToConfFile = "resources/applicationSecure.conf"
         loadConfig()
     }
 
