@@ -8,7 +8,7 @@ import io.ktor.gson.*
 import io.ktor.application.install
 import io.ktor.routing.*
 import org.slf4j.LoggerFactory
-import database.user.*
+import database.tables.*
 import io.ktor.auth.Authentication
 import io.ktor.auth.authenticate
 import io.ktor.auth.jwt.jwt
@@ -19,7 +19,8 @@ import io.ktor.request.receiveStream
 import io.ktor.application.call
 import utils.Config
 import utils.JwtConfig
-import utils.JwtConfig.user
+import utils.PasswordConfig
+import utils.user
 
 @Suppress("requestHandler")
 @kotlin.jvm.JvmOverloads
@@ -38,7 +39,7 @@ fun Application.module(testing: Boolean = true) {
 
         jwt(name = "access") {
             realm = Config().loadPath("ktor.jwt.realm") ?: "ru.rtuitlab.account"
-            verifier(JwtConfig.accessVerifier)
+            verifier(JwtConfig().accessVerifier)
             validate {
                 HibernateUtil().getEntity(it.payload.getClaim("user_id").asInt(), User())
             }
@@ -46,7 +47,7 @@ fun Application.module(testing: Boolean = true) {
 
         jwt(name = "refresh") {
             realm = Config().loadPath("ktor.jwt.realm") ?: "ru.rtuitlab.account"
-            verifier(JwtConfig.refreshVerifier)
+            verifier(JwtConfig().refreshVerifier)
             validate {
                 HibernateUtil().getEntity(it.payload.getClaim("user_id").asInt(), User())
             }
@@ -78,7 +79,7 @@ fun Application.module(testing: Boolean = true) {
 
                     val resultCredAdding = hibernateUtil.addUserCredentials(
                         username = userCredentials.get("username").asString,
-                        password = userCredentials.get("password").asString,
+                        password = PasswordConfig.generatePassword(userCredentials.get("password").asString),
                         userId = id
                     )
 
@@ -112,7 +113,7 @@ fun Application.module(testing: Boolean = true) {
                         }
                         logger.info("User added to postgres database with id = $id")
                         result.addProperty("id", id)
-
+                        //TODO: send confirmation to phone, email
                     } else {
                         logger.error("Error adding credentials")
                         result.addProperty("credentials", "error")
@@ -138,12 +139,15 @@ fun Application.module(testing: Boolean = true) {
             val userPas = tmp?.get("password")
             if (userLog != null && userPas != null) {
                 val userCredentials = hibernateUtil.getUserCredentialsByUserName(userLog.asString)
-                // should be like this
-                // val someClass=HibernateUtil.getSomeClassByUserId(SomeCalss::class.java,userCredentials.user.id)
-                if (userCredentials != null && userCredentials.password == userPas.asString) {
+
+                if (userCredentials != null && PasswordConfig.matchPassword(
+                        userPas.asString,
+                        userCredentials.password!!
+                    )
+                ) {
                     val result = JsonObject()
-                    val refreshToken = JwtConfig.makeRefresh(userCredentials.user!!)
-                    val accessToken = JwtConfig.makeAccess(userCredentials.user)
+                    val refreshToken = JwtConfig().makeRefresh(userCredentials.user!!)
+                    val accessToken = JwtConfig().makeAccess(userCredentials.user)
                     result.addProperty("refreshToken", refreshToken)
                     result.addProperty("refresh_expire_in", JWT.decode(refreshToken).expiresAt.time)
                     result.addProperty("accessToken", accessToken)
@@ -165,8 +169,8 @@ fun Application.module(testing: Boolean = true) {
                 val result = JsonObject()
                 if (user != null) {
                     // also create new secret for user to make past tokens invalid (?)
-                    val refreshToken = JwtConfig.makeRefresh(user)
-                    val accessToken = JwtConfig.makeAccess(user)
+                    val refreshToken = JwtConfig().makeRefresh(user)
+                    val accessToken = JwtConfig().makeAccess(user)
 
                     result.addProperty("refreshToken", refreshToken)
                     result.addProperty("refresh_expire_in", JWT.decode(refreshToken).expiresAt.time)

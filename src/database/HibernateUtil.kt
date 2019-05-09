@@ -1,4 +1,4 @@
-import database.user.*
+import database.tables.*
 import org.hibernate.Session
 import org.hibernate.SessionFactory
 import org.hibernate.boot.registry.StandardServiceRegistry
@@ -22,11 +22,11 @@ class HibernateUtil {
         logger.info("Connecting to postgres database")
         val configuration = Configuration()
 
-        configuration.addAnnotatedClass(database.user.User::class.java)
-        configuration.addAnnotatedClass(database.user.UserCredentials::class.java)
-        configuration.addAnnotatedClass(database.user.UserProperty::class.java)
+        configuration.addAnnotatedClass(database.tables.User::class.java)
+        configuration.addAnnotatedClass(database.tables.UserCredentials::class.java)
+        configuration.addAnnotatedClass(database.tables.UserProperty::class.java)
         configuration.addAnnotatedClass(UserPropertyStatus::class.java)
-        configuration.addAnnotatedClass(database.user.UserPropertyType::class.java)
+        configuration.addAnnotatedClass(database.tables.UserPropertyType::class.java)
 
         configuration.configure("hibernate.cfg.xml")
 
@@ -74,33 +74,6 @@ class HibernateUtil {
         }
         return this
     }
-
-    /**
-     * Adding refresh token to postgres database
-     * @param token refresh token
-     * @param
-     */
-//    fun addRefreshToken(token: String): Int {
-//        var session: Session? = null
-//
-//        if (sessionFactory == null || sessionFactory!!.isClosed)
-//            setUpSession()
-//
-//        return try {
-//            session = sessionFactory!!.openSession()
-//            session.beginTransaction()
-//            val refreshToken = RefreshToken(token = token)
-//
-//            session.save(refreshToken)
-//            session.transaction.commit()
-//            session.close()
-//            refreshToken.id
-//        } catch (ex: Exception) {
-//            if (session != null) session.close()
-//            logger.error(ex.message)
-//            0
-//        }
-//    }
 
     /**
      * Adding user property status (e.g. confirmed) postgres database
@@ -242,7 +215,6 @@ class HibernateUtil {
         }
     }
 
-    //TODO: TEST THIS FUNCTION on adding and result!
     /**
      * Add UserCredentials to postgres database
      * @param username users username

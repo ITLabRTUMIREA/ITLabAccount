@@ -1,4 +1,4 @@
-package database.user
+package database.tables
 
 import io.ktor.auth.Principal
 import javax.persistence.*

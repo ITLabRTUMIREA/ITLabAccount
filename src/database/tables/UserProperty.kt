@@ -1,4 +1,4 @@
-package database.user
+package database.tables
 
 import org.hibernate.annotations.Cascade
 import javax.persistence.*

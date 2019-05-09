@@ -10,12 +10,11 @@
         <property name="connection.autocommit">true</property>
         <property name="dialect">org.hibernate.dialect.PostgreSQL95Dialect</property>
 
-        <mapping class="database.user.User"/>
-        <mapping class="database.user.RefreshToken"/>
-        <mapping class="database.user.UserCredentials"/>
-        <mapping class="database.user.UserProperty"/>
-        <mapping class="database.user.UserPropertyStatus"/>
-        <mapping class="database.user.UserPropertyType"/>
+        <mapping class="database.tables.User"/>
+        <mapping class="database.tables.UserCredentials"/>
+        <mapping class="database.tables.UserProperty"/>
+        <mapping class="database.tables.UserPropertyStatus"/>
+        <mapping class="database.tables.UserPropertyType"/>
 
     </session-factory>
 </hibernate-configuration>
