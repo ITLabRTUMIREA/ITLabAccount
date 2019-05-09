@@ -2,6 +2,7 @@
 
 import com.auth0.jwt.JWT
 import com.google.gson.*
+import database.RedisDBClient
 import io.ktor.features.ContentNegotiation
 import io.ktor.application.Application
 import io.ktor.gson.*
@@ -17,14 +18,12 @@ import io.ktor.response.respond
 import java.io.InputStreamReader
 import io.ktor.request.receiveStream
 import io.ktor.application.call
-import utils.Config
-import utils.JwtConfig
-import utils.PasswordConfig
-import utils.user
+import utils.*
 
 @Suppress("requestHandler")
 @kotlin.jvm.JvmOverloads
 fun Application.module(testing: Boolean = true) {
+
 
     val logger = LoggerFactory.getLogger("HttpRequestHandler")
 
@@ -35,11 +34,19 @@ fun Application.module(testing: Boolean = true) {
         }
     }
 
+    val redisClient = RedisDBClient()
     install(Authentication) {
 
         jwt(name = "access") {
             realm = Config().loadPath("ktor.jwt.realm") ?: "ru.rtuitlab.account"
-            verifier(JwtConfig().accessVerifier)
+            this.verifier {
+                val userId = JWT.decode(it.render().removePrefix("Bearer ")).getClaim("user_id").asInt()
+                val secret = when (val a = redisClient.getSecret(userId.toString())) {
+                    null -> "qmvn13knfj3344k1"
+                    else -> a
+                }
+                JwtConfig(secret).accessVerifier
+            }
             validate {
                 HibernateUtil().getEntity(it.payload.getClaim("user_id").asInt(), User())
             }
@@ -47,7 +54,14 @@ fun Application.module(testing: Boolean = true) {
 
         jwt(name = "refresh") {
             realm = Config().loadPath("ktor.jwt.realm") ?: "ru.rtuitlab.account"
-            verifier(JwtConfig().refreshVerifier)
+            this.verifier {
+                val userId = JWT.decode(it.render().removePrefix("Bearer ")).getClaim("user_id").asInt()
+                val secret = when (val a = redisClient.getSecret(userId.toString())) {
+                    null -> Config().loadPath("ktor.jwt.defaultSecret") ?: "qmvn13knfj3344k1"
+                    else -> a
+                }
+                JwtConfig(secret).accessVerifier
+            }
             validate {
                 HibernateUtil().getEntity(it.payload.getClaim("user_id").asInt(), User())
             }
@@ -146,8 +160,13 @@ fun Application.module(testing: Boolean = true) {
                     )
                 ) {
                     val result = JsonObject()
-                    val refreshToken = JwtConfig().makeRefresh(userCredentials.user!!)
-                    val accessToken = JwtConfig().makeAccess(userCredentials.user)
+
+                    val secret = Secret.generate()
+                    val jwt = JwtConfig(secret)
+                    val refreshToken = jwt.makeRefresh(userCredentials.user!!)
+                    val accessToken = jwt.makeAccess(userCredentials.user)
+                    redisClient.addSecret(userCredentials.user.id.toString(), secret)
+
                     result.addProperty("refreshToken", refreshToken)
                     result.addProperty("refresh_expire_in", JWT.decode(refreshToken).expiresAt.time)
                     result.addProperty("accessToken", accessToken)
@@ -164,13 +183,17 @@ fun Application.module(testing: Boolean = true) {
         }
 
         authenticate("refresh") {
+
             get("api/updateTokens") {
                 val user = call.user
                 val result = JsonObject()
                 if (user != null) {
-                    // also create new secret for user to make past tokens invalid (?)
-                    val refreshToken = JwtConfig().makeRefresh(user)
-                    val accessToken = JwtConfig().makeAccess(user)
+
+                    val secret = Secret.generate()
+                    val jwt = JwtConfig(secret)
+                    val refreshToken = jwt.makeRefresh(user!!)
+                    val accessToken = jwt.makeAccess(user)
+                    redisClient.addSecret(user.id.toString(), secret)
 
                     result.addProperty("refreshToken", refreshToken)
                     result.addProperty("refresh_expire_in", JWT.decode(refreshToken).expiresAt.time)
@@ -185,6 +208,7 @@ fun Application.module(testing: Boolean = true) {
         }
 
         authenticate("access") {
+
             post("api/database/connect") {
                 hibernateUtil.setUpSession()
             }
@@ -662,6 +686,7 @@ fun Application.module(testing: Boolean = true) {
         }
     }
 }
+
 
 
 

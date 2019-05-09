@@ -3,6 +3,7 @@ package utils
 import com.auth0.jwt.JWT
 import com.auth0.jwt.JWTVerifier
 import com.auth0.jwt.algorithms.Algorithm
+import database.RedisDBClient
 import database.tables.User
 import io.ktor.application.ApplicationCall
 import io.ktor.auth.authentication
@@ -10,21 +11,63 @@ import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.util.*
 
-class JwtConfig {
-    private val secret = "secret"
+class JwtConfig(private val secret: String) {
+
+    companion object {
+        private var redisClient: RedisDBClient? = null
+        //var secret: String = "qwe"
+    }
+
+
+    val x = JwtConfig.Companion
+
+    fun connectToRedis() {
+        if (redisClient == null) redisClient = RedisDBClient()
+    }
 
     private val issuer = when (val a = Config().loadPath("ktor.jwt.issuer")) {
         null -> "ru.rtuitlab.account"
         else -> a
     }
 
-    private val algorithm = Algorithm.HMAC512(secret)
+//    fun loadSecretFromRedis(userId: Int): Boolean {
+//        secret = when (val a = redisClient!!.getSecret(userId.toString())) {
+//            null -> ""
+//            else -> a
+//        }
+//        println(secret)
+//        algorithm = Algorithm.HMAC512(secret)
+//        return !secret.isNullOrBlank()
+//    }
+
+//    fun writeSecretToRedis(userId: Int) {
+//        secret = Secret.generate()
+//        algorithm = Algorithm.HMAC512(secret)
+//        redisClient!!.addSecret(userId.toString(), secret)
+//    }
+
+
+
+    var algorithm = Algorithm.HMAC512(secret)
+
+    fun reloadAlgorithm(secret: String) {
+        algorithm = Algorithm.HMAC512(secret)
+    }
 
     val accessVerifier: JWTVerifier = JWT
         .require(algorithm)
         .withIssuer(issuer)
         .withClaim("token_type", "access")
         .build()
+
+    fun accessVerifier(): JWTVerifier {
+        println()
+        return JWT
+            .require(algorithm)
+            .withIssuer(issuer)
+            .withClaim("token_type", "access")
+            .build()
+    }
 
     val refreshVerifier: JWTVerifier = JWT
         .require(algorithm)
@@ -72,6 +115,6 @@ class JwtConfig {
 
 }
 
-val ApplicationCall.user
+inline val ApplicationCall.user
     get() = authentication.principal<User>()
 
