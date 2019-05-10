@@ -42,7 +42,7 @@ fun Application.module(testing: Boolean = true) {
             this.verifier {
                 val userId = JWT.decode(it.render().removePrefix("Bearer ")).getClaim("user_id").asInt()
                 val secret = when (val a = redisClient.getSecret(userId.toString())) {
-                    null -> "qmvn13knfj3344k1"
+                    null -> Config().loadPath("ktor.jwt.defaultSecret") ?: "qmvn13knfj3344k1"
                     else -> a
                 }
                 JwtConfig(secret).accessVerifier
@@ -60,12 +60,13 @@ fun Application.module(testing: Boolean = true) {
                     null -> Config().loadPath("ktor.jwt.defaultSecret") ?: "qmvn13knfj3344k1"
                     else -> a
                 }
-                JwtConfig(secret).accessVerifier
+                JwtConfig(secret).refreshVerifier
             }
             validate {
                 HibernateUtil().getEntity(it.payload.getClaim("user_id").asInt(), User())
             }
         }
+
     }
 
     val hibernateUtil = HibernateUtil().setUpSession()
@@ -165,6 +166,7 @@ fun Application.module(testing: Boolean = true) {
                     val jwt = JwtConfig(secret)
                     val refreshToken = jwt.makeRefresh(userCredentials.user!!)
                     val accessToken = jwt.makeAccess(userCredentials.user)
+
                     redisClient.addSecret(userCredentials.user.id.toString(), secret)
 
                     result.addProperty("refreshToken", refreshToken)
@@ -191,8 +193,9 @@ fun Application.module(testing: Boolean = true) {
 
                     val secret = Secret.generate()
                     val jwt = JwtConfig(secret)
-                    val refreshToken = jwt.makeRefresh(user!!)
+                    val refreshToken = jwt.makeRefresh(user)
                     val accessToken = jwt.makeAccess(user)
+
                     redisClient.addSecret(user.id.toString(), secret)
 
                     result.addProperty("refreshToken", refreshToken)
@@ -211,6 +214,19 @@ fun Application.module(testing: Boolean = true) {
 
             post("api/database/connect") {
                 hibernateUtil.setUpSession()
+            }
+
+            get("api/logout") {
+                val user = call.user
+                if (user != null) {
+                    if (redisClient.deleteSecret(user.id.toString())) {
+                        call.response.status(HttpStatusCode.OK)
+                    } else {
+                        call.response.status(HttpStatusCode.NotFound)
+                    }
+                } else {
+                    call.response.status(HttpStatusCode.NotFound)
+                }
             }
 
             get("api/database/userPropertyStatus") {

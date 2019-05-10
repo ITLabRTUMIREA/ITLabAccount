@@ -1,5 +1,6 @@
 package database
 
+import com.google.gson.JsonObject
 import io.lettuce.core.RedisClient
 import io.lettuce.core.RedisConnectionException
 import io.lettuce.core.RedisException
@@ -149,6 +150,29 @@ class RedisDBClient {
             logger.info("Can't add secret with id = $id")
             null
         }
+    }
+
+    /**
+     * Deleting secret by user id
+     * @param id user id
+     */
+    fun deleteSecret(id: String?): Boolean {
+        if (!isConnected()) loadConnectParametersFromConfigAndConnect()
+        return if (isConnected()) {
+            when (syncCommands!!.del(id)) {
+                0L -> {
+                    logger.info("User secret deleted id = $id")
+                    false
+                }
+                else -> {
+                    logger.info("User secret not deleted id = $id")
+                    true
+                }
+            }
+        } else {
+            false
+        }
+
     }
 
     private fun writeSecret(id: String, secret: String): Boolean {
