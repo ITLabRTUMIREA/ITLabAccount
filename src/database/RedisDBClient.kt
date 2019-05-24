@@ -1,6 +1,5 @@
 package database
 
-import com.google.gson.JsonObject
 import io.lettuce.core.RedisClient
 import io.lettuce.core.RedisConnectionException
 import io.lettuce.core.RedisException
@@ -8,6 +7,7 @@ import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.api.sync.RedisCommands
 import org.slf4j.LoggerFactory
 import utils.Config
+import utils.Session
 import java.time.Duration
 import java.util.*
 import kotlin.concurrent.timer
@@ -115,77 +115,171 @@ class RedisDBClient {
         }
     }
 
-    fun addSecret(id: String, secret: String): Boolean {
-        logger.info("Adding secret with id = $id to redis database")
+    fun deleteLastKeyAndAddNew(userId: String, secret: String): String? {
+        val keys = getKeys(userId)
+        val key = keys?.get(0)
+        return if (key != null) {
+            deleteSecret(userId, key) && addSecret(userId, key, secret)
+            key
+        } else
+            null
+    }
+
+    fun keysSize(userId: String): Int? =
+        getKeys(userId)?.size
+
+    fun containsSecret(userId: String, sessionId: String): Boolean =
+        getSecret(userId, sessionId) != null
+
+    /**
+     * Updating secret to user with id userId to field sessionId
+     * @param userId
+     * @param sessionId
+     * @param secret
+     * @return true if updated else false
+     */
+    fun updateSecret(userId: String, sessionId: String, secret: String): Boolean =
+        deleteSecret(userId, sessionId) && addSecret(userId, sessionId, secret)
+
+    /**
+     * Adding secret to user with id userId to field sessionId
+     * @param userId
+     * @param sessionId
+     * @param secret
+     * @return true if added else false
+     */
+    fun addSecret(userId: String, sessionId: String, secret: String): Boolean {
+        logger.info("Adding secret to user with id = $userId , to field  = $sessionId to redis database")
 
         if (!isConnected()) loadConnectParametersFromConfigAndConnect()
 
         return if (isConnected()) {
             try {
-                writeSecret(id, secret)
+                writeSecretFun(userId, sessionId, secret)
             } catch (ex: io.lettuce.core.RedisCommandExecutionException) {
                 logger.error(ex.message)
                 false
             }
         } else {
-            logger.info("Can't add secret with id = $id")
+            logger.info("Can't connect to redis")
             false
         }
-
     }
 
-    fun getSecret(id: String): String? {
-        logger.info("Getting secret with id = $id from redis database")
+    /**
+     * Getting secret from user with id userId from field with id sessionId
+     * @param userId
+     * @param sessionId
+     * @return secret if got, else null
+     */
+    fun getSecret(userId: String, sessionId: String): String? {
+        logger.info("Getting secret for user with id = $userId, from field = $sessionId from redis database")
 
         if (!isConnected()) loadConnectParametersFromConfigAndConnect()
 
         return if (isConnected()) {
-            try {
-                syncCommands!!.get(id)
-            } catch (ex: io.lettuce.core.RedisCommandExecutionException) {
-                logger.error(ex.message)
-                null
-            }
+            getSecretFun(userId, sessionId)
         } else {
-            logger.info("Can't add secret with id = $id")
+            logger.info("Can't connect to redis")
             null
         }
     }
 
     /**
-     * Deleting secret by user id
-     * @param id user id
+     * Deleting secret with id sessionId from user with userId
+     * @param userId
+     * @param sessionId secretId
+     * @return true if deleted else false
      */
-    fun deleteSecret(id: String?): Boolean {
+    fun deleteSecret(userId: String, sessionId: String): Boolean {
+        logger.info("Deleting secret from user with id = $userId, from field = $sessionId from redis database")
+
         if (!isConnected()) loadConnectParametersFromConfigAndConnect()
+
         return if (isConnected()) {
-            when (syncCommands!!.del(id)) {
-                0L -> {
-                    logger.info("User secret deleted id = $id")
-                    false
-                }
-                else -> {
-                    logger.info("User secret not deleted id = $id")
-                    true
-                }
-            }
+            deleteSecretFun(userId, sessionId)
         } else {
+            logger.info("Can't connect to redis")
             false
         }
-
     }
 
-    private fun writeSecret(id: String, secret: String): Boolean {
-        return when (syncCommands!!.set(id, secret)) {
-            "OK" -> {
-                logger.info("Secret $id added to redis database!")
+    /**
+     * Getting all secret keys for current user with userId
+     * @param userId
+     * @return list of keys
+     */
+    fun getKeys(userId: String): MutableList<String>? {
+        logger.info("Getting keys from userId = $userId")
+
+        if (!isConnected()) loadConnectParametersFromConfigAndConnect()
+
+        return if (isConnected()) {
+            val list = syncCommands!!.hkeys(userId)
+            return if (list.isEmpty())
+                null
+            else
+                list
+        } else {
+            logger.info("Can't connect to redis")
+            null
+        }
+    }
+
+    /**
+     * Getting secret from redis database by userID, sessionId
+     * @param userId user id
+     * @param sessionId session id (field in userId set)
+     * @return secret value
+     */
+    private fun getSecretFun(userId: String, sessionId: String): String? {
+        val secret = syncCommands!!.hget(userId, sessionId)
+        return if (secret.isNullOrBlank()) {
+            logger.info("Secret is not got from user with id = $userId, from field = $sessionId !")
+            null
+        } else {
+            logger.error("Secret got from user with id = $userId, from field = $sessionId !")
+            secret
+        }
+    }
+
+    /**
+     * Adding secret to redis database by userID, sessionId
+     * @param userId user id
+     * @param sessionId session id (field in userId set)
+     * @param secret secret
+     * @return true if added else false
+     */
+    private fun writeSecretFun(userId: String, sessionId: String, secret: String): Boolean {
+        return when (syncCommands!!.hset(userId, sessionId, secret)) {
+            true -> {
+                logger.info("Secret to user with id = $userId, to field = $sessionId added to redis database!")
                 true
             }
             else -> {
-                logger.error("Error adding secret $id")
+                logger.error("Error adding secret to user with id = $userId, to field = $sessionId !")
                 false
             }
 
+        }
+    }
+
+    /**
+     * Deleting secret from redis database by userID, sessionId
+     * @param userId user id
+     * @param sessionId session id (field in userId set)
+     * @return true if deleted else false
+     */
+    private fun deleteSecretFun(userId: String, sessionId: String): Boolean {
+        return when (syncCommands!!.hdel(userId, sessionId)) {
+            0L -> {
+                logger.error("Error deleting secret from user with id = $userId, from field = $sessionId !")
+                false
+            }
+            else -> {
+                logger.info("Secret was deleted from user with id = $userId, from field = $sessionId !")
+                true
+            }
         }
     }
 

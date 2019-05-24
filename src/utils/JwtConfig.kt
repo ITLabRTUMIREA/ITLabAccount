@@ -32,7 +32,7 @@ class JwtConfig(private val secret: String) {
         .withClaim("token_type", "refresh")
         .build()
 
-    fun makeAccess(user: User): String {
+    fun makeAccess(user: User, sessionId: String): String {
 
         val expire = when (val a = Config().loadPath("ktor.tokens_expires.access_expire_in")) {
             null -> 2L
@@ -43,11 +43,12 @@ class JwtConfig(private val secret: String) {
             .withIssuer(issuer)
             .withClaim("user_id", user.id)
             .withClaim("token_type", "access")
+            .withClaim("session_id", sessionId)
             .withExpiresAt(getExpiration(hours = expire))
             .sign(algorithm)
     }
 
-    fun makeRefresh(user: User): String {
+    fun makeRefresh(user: User, sessionId: String): String {
 
         val expire = when (val a = Config().loadPath("ktor.tokens_expires.refresh_expire_in")) {
             null -> 2L
@@ -58,6 +59,7 @@ class JwtConfig(private val secret: String) {
             .withIssuer(issuer)
             .withClaim("user_id", user.id)
             .withClaim("token_type", "refresh")
+            .withClaim("session_id", sessionId)
             .withExpiresAt(getExpiration(days = expire))
             .sign(algorithm)
     }

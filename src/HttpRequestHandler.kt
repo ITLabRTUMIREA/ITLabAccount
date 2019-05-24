@@ -18,12 +18,12 @@ import io.ktor.response.respond
 import java.io.InputStreamReader
 import io.ktor.request.receiveStream
 import io.ktor.application.call
+import io.ktor.sessions.*
 import utils.*
 
 @Suppress("requestHandler")
 @kotlin.jvm.JvmOverloads
 fun Application.module(testing: Boolean = true) {
-
 
     val logger = LoggerFactory.getLogger("HttpRequestHandler")
 
@@ -35,14 +35,20 @@ fun Application.module(testing: Boolean = true) {
     }
 
     val redisClient = RedisDBClient()
+
+    install(Sessions) {
+        cookie<UserSession>("SESSION_ID")
+    }
+
     install(Authentication) {
 
         jwt(name = "access") {
             realm = Config().loadPath("ktor.jwt.realm") ?: "ru.rtuitlab.account"
             this.verifier {
                 val userId = JWT.decode(it.render().removePrefix("Bearer ")).getClaim("user_id").asInt()
-                val secret = when (val a = redisClient.getSecret(userId.toString())) {
-                    null -> Config().loadPath("ktor.jwt.defaultSecret") ?: "qmvn13knfj3344k1"
+                val sessionId = JWT.decode(it.render().removePrefix("Bearer ")).getClaim("session_id").asString()
+                val secret = when (val a = redisClient.getSecret(userId.toString(), sessionId)) {
+                    null -> Config().loadPath("ktor.jwt.defaultSecret") ?: ""
                     else -> a
                 }
                 JwtConfig(secret).accessVerifier
@@ -56,8 +62,9 @@ fun Application.module(testing: Boolean = true) {
             realm = Config().loadPath("ktor.jwt.realm") ?: "ru.rtuitlab.account"
             this.verifier {
                 val userId = JWT.decode(it.render().removePrefix("Bearer ")).getClaim("user_id").asInt()
-                val secret = when (val a = redisClient.getSecret(userId.toString())) {
-                    null -> Config().loadPath("ktor.jwt.defaultSecret") ?: "qmvn13knfj3344k1"
+                val sessionId = JWT.decode(it.render().removePrefix("Bearer ")).getClaim("session_id").asString()
+                val secret = when (val a = redisClient.getSecret(userId.toString(), sessionId)) {
+                    null -> Config().loadPath("ktor.jwt.defaultSecret") ?: ""
                     else -> a
                 }
                 JwtConfig(secret).refreshVerifier
@@ -162,12 +169,42 @@ fun Application.module(testing: Boolean = true) {
                 ) {
                     val result = JsonObject()
 
-                    val secret = Secret.generate()
-                    val jwt = JwtConfig(secret)
-                    val refreshToken = jwt.makeRefresh(userCredentials.user!!)
-                    val accessToken = jwt.makeAccess(userCredentials.user)
+                    val sessionIdFromRequest = call.sessions.get<UserSession>()?.value
 
-                    redisClient.addSecret(userCredentials.user.id.toString(), secret)
+                    val secret: String
+                    val session: String
+                    val userId = userCredentials.user!!.id.toString()
+
+                    //TODO: getting maxActiveConnections from database
+                    val maxActiveConnections = 5
+
+                    if (sessionIdFromRequest != null) {
+                        if (redisClient.containsSecret(userId, sessionIdFromRequest)) {
+                            secret = Secret.generate()
+                            session = sessionIdFromRequest
+                            redisClient.updateSecret(userId, session, secret)
+                        } else {
+                            val keysSize = redisClient.keysSize(userId)
+                            if (keysSize == maxActiveConnections) {
+                                secret = Secret.generate()
+                                session = redisClient.deleteLastKeyAndAddNew(userId, secret) ?: ""
+                            } else {
+                                secret = Secret.generate()
+                                session = Session.generate()
+                                redisClient.addSecret(userId, session, secret)
+                            }
+                        }
+                    } else {
+                        secret = Secret.generate()
+                        session = Session.generate()
+                        redisClient.addSecret(userId, session, secret)
+                    }
+
+                    call.sessions.set(UserSession("Session_ID", session))
+
+                    val jwt = JwtConfig(secret)
+                    val refreshToken = jwt.makeRefresh(userCredentials.user, session)
+                    val accessToken = jwt.makeAccess(userCredentials.user, session)
 
                     result.addProperty("refreshToken", refreshToken)
                     result.addProperty("refresh_expire_in", JWT.decode(refreshToken).expiresAt.time)
@@ -191,12 +228,29 @@ fun Application.module(testing: Boolean = true) {
                 val result = JsonObject()
                 if (user != null) {
 
-                    val secret = Secret.generate()
-                    val jwt = JwtConfig(secret)
-                    val refreshToken = jwt.makeRefresh(user)
-                    val accessToken = jwt.makeAccess(user)
+                    val sessionIdFromRequest = call.sessions.get<UserSession>()?.value
 
-                    redisClient.addSecret(user.id.toString(), secret)
+                    var secret: String = ""
+                    var session: String = ""
+                    val userId = user.id.toString()
+
+                    if (sessionIdFromRequest != null) {
+                        if (redisClient.containsSecret(userId, sessionIdFromRequest)) {
+                            secret = Secret.generate()
+                            session = sessionIdFromRequest
+                            redisClient.updateSecret(userId, session, secret)
+                        } else {
+                            call.response.status(HttpStatusCode.NotFound)
+                        }
+                    } else {
+                        call.response.status(HttpStatusCode.NotFound)
+                    }
+
+                    call.sessions.set(UserSession("Session_ID", session))
+
+                    val jwt = JwtConfig(secret)
+                    val refreshToken = jwt.makeRefresh(user, session)
+                    val accessToken = jwt.makeAccess(user, session)
 
                     result.addProperty("refreshToken", refreshToken)
                     result.addProperty("refresh_expire_in", JWT.decode(refreshToken).expiresAt.time)
@@ -219,7 +273,13 @@ fun Application.module(testing: Boolean = true) {
             get("api/logout") {
                 val user = call.user
                 if (user != null) {
-                    if (redisClient.deleteSecret(user.id.toString())) {
+                    val sessionIdFromRequest = call.sessions.get<UserSession>()?.value
+
+                    if (sessionIdFromRequest != null && redisClient.deleteSecret(
+                            user.id.toString(),
+                            sessionIdFromRequest
+                        )
+                    ) {
                         call.response.status(HttpStatusCode.OK)
                     } else {
                         call.response.status(HttpStatusCode.NotFound)
@@ -234,6 +294,11 @@ fun Application.module(testing: Boolean = true) {
                     "all", "0", "*" -> 0
                     else -> a?.toIntOrNull()
                 }
+
+                val session = call.sessions.get<UserSession>()
+                println(session == null)
+                if (session != null)
+                    println("${session.name} ${session.value}")
 
                 if (id != null) {
 
